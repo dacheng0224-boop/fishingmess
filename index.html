@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>钓鱼乱斗 - 8人拥挤版</title>
+    <style>
+        /* 基础样式重置 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+            touch-action: none; /* 禁止缩放和滚动 */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            /* 深海渐变背景 */
+            background: linear-gradient(180deg, #87CEEB 0%, #1E90FF 25%, #00008B 100%);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI 层 */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 5;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 18px;
+            text-shadow: 2px 2px 0 #000;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: auto;
+            color: white;
+            text-align: center;
+        }
+
+        .modal h1 { font-size: 32px; color: #FFD700; margin-bottom: 10px; }
+        .modal p { font-size: 16px; color: #ddd; margin: 5px 0 20px; line-height: 1.5; }
+        
+        .btn {
+            background: #ff5722;
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #bf360c;
+            cursor: pointer;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div>💰 <span id="score">0</span> / <span id="target">500</span></div>
+            <div>⏳ <span id="time">60</span>s</div>
+        </div>
+    </div>
+
+    <!-- 开始界面 -->
+    <div id="start-screen" class="modal">
+        <h1>🎣 钓鱼乱斗</h1>
+        <p>竖屏 8 人大乱斗！<br>点击屏幕出钩，别管公平性，抢就完了！</p>
+        <button class="btn" onclick="Game.start()">开始抢鱼</button>
+    </div>
+
+    <!-- 结算界面 -->
+    <div id="end-screen" class="modal hidden">
+        <h1 id="end-title">游戏结束</h1>
+        <p id="end-reason">...</p>
+        <p>最终得分: <span id="final-score">0</span></p>
+        <button class="btn" onclick="Game.start()">再来一局</button>
+    </div>
+</div>
+
+<script>
+/**
+ * 游戏核心逻辑 - 8人乱斗版
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// 屏幕适配
+let W, H;
+function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- 游戏常量配置 ---
+const CONFIG = {
+    anglerCount: 8,         // 总人数
+    rowSize: 4,             // 每行人数
+    playerIndex: 5,         // 玩家索引 (0-3是后排, 4-7是前排, 5是前排左二)
+    hookBaseSpeed: 12,      // 钩子基础速度
+    swingSpeed: 0.025,      // 摆动速度
+    spawnRate: 60,          // 鱼刷新频率(帧)
+};
+
+// 物品属性定义
+const ITEMS_DB = {
+    small: { emoji: '🐟', score: 100, weight: 1.0, speed: 2.5, radius: 15 },
+    big:   { emoji: '🦈', score: 350, weight: 3.5, speed: 1.0, radius: 28 }, // 重，慢，值钱
+    money: { emoji: '💎', score: 800, weight: 0.5, speed: 4.0, radius: 12 }, // 极快，轻，难瞄
+    trash: { emoji: '👢', score: 10,  weight: 7.0, speed: 0.6, radius: 20 }  // 极重，垃圾
+};
+
+// --- 类定义 ---
+
+class Angler {
+    constructor(index) {
+        this.index = index;
+        this.isPlayer = (index === CONFIG.playerIndex);
+        
+        // 计算行号和列号
+        const row = Math.floor(index / CONFIG.rowSize); // 0=后排(上), 1=前排(下)
+        const col = index % CONFIG.rowSize;
+        
+        // 布局计算：两行排列
+        // 后排(row0) Y坐标较小，前排(row1) Y坐标较大
+        this.y = row === 0 ? H * 0.06 : H * 0.14; 
+        // X坐标均匀分布
+        this.x = (W / (CONFIG.rowSize + 1)) * (col + 1);
+        
+        // 颜色区分
+        this.color = this.isPlayer ? '#FFD700' : (row === 0 ? '#555' : '#888'); // 玩家金色，后排深灰，前排浅灰
+        
+        // 物理状态
+        this.angle = Math.PI / 2; // 初始向下
+        this.swingDir = Math.random() > 0.5 ? 1 : -1;
+        this.state = 0; // 0:摆动, 1:发射, 2:拉回, 3:暂停
+        
+        this.lineLen = 20;
+        this.maxLen = H * 1.1; // 稍微超出屏幕
+        this.caughtItem = null;
+        
+        // AI 随机性
+        this.aiTimer = Math.random() * 100;
+    }
+
+    update() {
+        // 1. 摆动状态
+        if (this.state === 0) {
+            const limit = 0.4; // 限制摆动角度，防止甩到天上
+            if (this.angle > Math.PI - limit) this.swingDir = -1;
+            if (this.angle < limit) this.swingDir = 1;
+            this.angle += CONFIG.swingSpeed * this.swingDir;
+            
+            // AI 自动射击
+            if (!this.isPlayer) {
+                this.aiTimer--;
+                if (this.aiTimer <= 0) {
+                    this.shoot();
+                    this.aiTimer = Math.random() * 120 + 40; // 重置AI思考时间
+                }
+            }
+        }
+        // 2. 发射状态
+        else if (this.state === 1) {
+            this.lineLen += CONFIG.hookBaseSpeed;
+            
+            // 计算钩子尖端坐标
+            const tx = this.x + Math.cos(this.angle) * this.lineLen;
+            const ty = this.y + Math.sin(this.angle) * this.lineLen;
+            
+            // 边界/空钩判定
+            if (this.lineLen >= this.maxLen || tx < 0 || tx > W) {
+                this.state = 3; // 进入暂停
+                this.pauseTimer = 30; // 停顿0.5秒(30帧)
+            } else {
+                // 碰撞检测 (只检测未被抓的物品)
+                for (let item of Game.items) {
+                    if (!item.caught && Math.hypot(tx - item.x, ty - item.y) < item.radius + 5) {
+                        // 抓到了！
+                        item.caught = true;
+                        this.caughtItem = item;
+                        this.state = 2; // 进入拉回
+                        if(this.isPlayer) Game.addEffect(tx, ty, "抓住!");
+                        break;
+                    }
+                }
+            }
+        }
+        // 3. 暂停状态 (空钩惩罚)
+        else if (this.state === 3) {
+            this.pauseTimer--;
+            if (this.pauseTimer <= 0) this.state = 2; // 开始回收
+        }
+        // 4. 拉回状态
+        else if (this.state === 2) {
+            let speed = CONFIG.hookBaseSpeed * 1.5; // 空钩回收很快
+            if (this.caughtItem) {
+                speed = CONFIG.hookBaseSpeed / this.caughtItem.weight; // 根据重量减速
+                // 更新物品位置
+                this.caughtItem.x = this.x + Math.cos(this.angle) * this.lineLen;
+                this.caughtItem.y = this.y + Math.sin(this.angle) * this.lineLen;
+            }
+            
+            this.lineLen -= speed;
+            
+            if (this.lineLen <= 20) {
+                // 回收完成
+                this.lineLen = 20;
+                this.state = 0;
+                if (this.caughtItem) {
+                    // 结算
+                    if (this.isPlayer) {
+                        Game.score += this.caughtItem.score;
+                        Game.addEffect(this.x, this.y + 40, `+${this.caughtItem.score}`);
+                    }
+                    // 从数组中彻底移除
+                    Game.items = Game.items.filter(i => i !== this.caughtItem);
+                    this.caughtItem = null;
+                }
+            }
+        }
+    }
+
+    shoot() {
+        if (this.state === 0) this.state = 1;
+    }
+
+    draw() {
+        const tx = this.x + Math.cos(this.angle) * this.lineLen;
+        const ty = this.y + Math.sin(this.angle) * this.lineLen;
+
+        // 画线
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(tx, ty);
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = this.isPlayer ? 3 : 1.5;
+        ctx.stroke();
+
+        // 画钩子
+        ctx.beginPath();
+        ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+        ctx.fillStyle = this.isPlayer ? 'red' : '#333';
+        ctx.fill();
+
+        // 画人 (Emoji)
+        ctx.font = "24px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        let avatar = this.isPlayer ? "🤠" : "🤖";
+        ctx.fillText(avatar, this.x, this.y - 15);
+        
+        // 玩家高亮指示
+        if (this.isPlayer) {
+            ctx.fillStyle = "#FFFF00";
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y - 45);
+            ctx.lineTo(this.x - 8, this.y - 55);
+            ctx.lineTo(this.x + 8, this.y - 55);
+            ctx.fill();
+        }
+    }
+}
+
+class Item {
+    constructor() {
+        // 随机类型权重
+        const r = Math.random();
+        let type;
+        if (r < 0.1) type = ITEMS_DB.money;      // 10%
+        else if (r < 0.25) type = ITEMS_DB.trash; // 15%
+        else if (r < 0.55) type = ITEMS_DB.big;   // 30%
+        else type = ITEMS_DB.small;              // 45%
+
+        Object.assign(this, type);
+        
+        // 关卡难度加成：鱼游得更快
+        this.speed *= (1 + (Game.level - 1) * 0.15);
+
+        // 随机深度 (避开顶部钓鱼者区域)
+        this.y = Math.random() * (H - 200) + 180;
+        
+        // 随机方向
+        this.dir = Math.random() > 0.5 ? 1 : -1;
+        this.x = this.dir === 1 ? -50 : W + 50;
+        
+        this.caught = false;
+    }
+
+    update() {
+        if (!this.caught) {
+            this.x += this.speed * this.dir;
+        }
+        // 游出屏幕销毁
+        if ((this.dir === 1 && this.x > W + 60) || (this.dir === -1 && this.x < -60)) {
+            return false;
+        }
+        return true;
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        // 方向翻转
+        if (this.dir === -1 && !this.caught) ctx.scale(-1, 1);
+        // 被抓挣扎效果
+        if (this.caught) ctx.rotate(Math.sin(Date.now()/100)*0.5);
+        
+        ctx.font = `${this.radius * 2}px Arial`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(this.emoji, 0, 0);
+        ctx.restore();
+    }
+}
+
+// 浮动文字特效
+class Effect {
+    constructor(x, y, text) {
+        this.x = x; this.y = y; this.text = text;
+        this.life = 40;
+    }
+    update() { this.y -= 1; this.life--; }
+    draw() {
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.life/40})`;
+        ctx.font = "bold 20px Arial";
+        ctx.fillText(this.text, this.x, this.y);
+    }
+}
+
+// --- 游戏主控制器 ---
+
+const Game = {
+    anglers: [],
+    items: [],
+    effects: [],
+    loopId: null,
+    timerId: null,
+    score: 0,
+    target: 500,
+    time: 60,
+    level: 1,
+    frameCount: 0,
+    isPlaying: false,
+
+    start() {
+        this.score = 0;
+        this.level = 1;
+        this.target = 500;
+        this.time = 60;
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('end-screen').classList.add('hidden');
+        this.initLevel();
+        this.isPlaying = true;
+        this.run();
+        
+        clearInterval(this.timerId);
+        this.timerId = setInterval(() => {
+            if(!this.isPlaying) return;
+            this.time--;
+            if(this.time <= 0) this.checkEnd();
+        }, 1000);
+    },
+
+    initLevel() {
+        this.anglers = [];
+        this.items = [];
+        this.effects = [];
+        // 初始化8名钓鱼者
+        for(let i=0; i<CONFIG.anglerCount; i++) {
+            this.anglers.push(new Angler(i));
+        }
+        // 初始生成一波鱼
+        for(let i=0; i<8; i++) this.items.push(new Item());
+    },
+
+    nextLevel() {
+        this.level++;
+        this.target = Math.floor(this.target * 1.5);
+        this.time = 60;
+        alert(`🎉 通关成功！进入第 ${this.level} 关\n目标分数: ${this.target}`);
+        this.initLevel(); // 重置场上物品
+    },
+
+    checkEnd() {
+        if (this.score >= this.target) {
+            this.nextLevel();
+        } else {
+            this.gameOver();
+        }
+    },
+
+    gameOver() {
+        this.isPlaying = false;
+        clearInterval(this.timerId);
+        document.getElementById('end-screen').classList.remove('hidden');
+        document.getElementById('end-reason').innerText = "时间到，目标未达成...";
+        document.getElementById('final-score').innerText = this.score;
+        cancelAnimationFrame(this.loopId);
+    },
+
+    addEffect(x, y, text) {
+        this.effects.push(new Effect(x, y, text));
+    },
+
+    run() {
+        if (!this.isPlaying) return;
+
+        ctx.clearRect(0, 0, W, H);
+        
+        // 1. UI 更新
+        document.getElementById('score').innerText = this.score;
+        document.getElementById('target').innerText = this.target;
+        document.getElementById('time').innerText = this.time;
+
+        // 2. 生成新鱼
+        this.frameCount++;
+        if (this.frameCount % CONFIG.spawnRate === 0 && this.items.length < 15) {
+            this.items.push(new Item());
+        }
+
+        // 3. 更新物品
+        this.items = this.items.filter(item => {
+            if(item.caught) return true; // 保持引用
+            return item.update();
+        });
+        // 绘制物品 (先画物品，保证被钩子盖住)
+        this.items.forEach(item => { if(!item.caught) item.draw(); });
+
+        // 4. 更新与绘制钓鱼者
+        // 关键逻辑：先画后排(index 0-3)，再画前排(index 4-7)，制造遮挡关系
+        // 由于布局是 index 0-3 row0, 4-7 row1
+        this.anglers.forEach(angler => angler.update());
+        
+        // 排序绘制，保证层级正确
+        const sortedAnglers = [...this.anglers].sort((a, b) => a.y - b.y);
+        
+        sortedAnglers.forEach(angler => {
+            angler.draw();
+            if(angler.caughtItem) angler.caughtItem.draw(); // 绘制被抓的物品
+        });
+
+        // 5. 特效
+        this.effects = this.effects.filter(e => e.life > 0);
+        this.effects.forEach(e => { e.update(); e.draw(); });
+
+        this.loopId = requestAnimationFrame(() => this.run());
+    }
+};
+
+// 交互事件
+function handleInput(e) {
+    if (!Game.isPlaying) return;
+    e.preventDefault(); // 防止双击放大
+    const player = Game.anglers[CONFIG.playerIndex];
+    player.shoot();
+}
+
+canvas.addEventListener('mousedown', handleInput);
+canvas.addEventListener('touchstart', handleInput, {passive: false});
+
+</script>
+</body>
+</html>
