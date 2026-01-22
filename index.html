@@ -2,95 +2,141 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>钓鱼乱斗 - 8人拥挤版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>钓鱼乱斗 - iOS Style</title>
     <style>
-        /* 基础样式重置 */
+        :root {
+            --ios-blue: #007AFF;
+            --ios-green: #34C759;
+            --ios-red: #FF3B30;
+            --ios-gray: #8E8E93;
+            --ios-bg-glass: rgba(30, 30, 30, 0.65);
+            --ios-border: rgba(255, 255, 255, 0.15);
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        }
+
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000;
-            font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
-            touch-action: none; /* 禁止缩放和滚动 */
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #000;
+            font-family: var(--font-stack);
+            -webkit-font-smoothing: antialiased;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            /* 深海渐变背景 */
-            background: linear-gradient(180deg, #87CEEB 0%, #1E90FF 25%, #00008B 100%);
+            position: relative; width: 100vw; height: 100vh;
+            /* 更深邃、高级的海洋渐变 */
+            background: linear-gradient(180deg, #3CA3E8 0%, #1A6BCC 40%, #03256C 100%);
         }
 
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
+        canvas { display: block; width: 100%; height: 100%; }
 
-        /* UI 层 */
+        /* --- iOS UI Layer --- */
         #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            z-index: 5;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+            box-sizing: border-box;
+            /* 适配刘海屏 */
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            display: flex; flex-direction: column;
         }
 
-        .hud-top {
-            display: flex;
-            justify-content: space-between;
-            padding: 15px;
+        /* 顶部 HUD：胶囊样式 */
+        .hud-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            width: 100%;
+        }
+
+        .glass-pill {
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--ios-border);
+            padding: 8px 16px;
+            border-radius: 30px;
             color: #fff;
-            font-weight: 800;
-            font-size: 18px;
-            text-shadow: 2px 2px 0 #000;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+            font-size: 15px;
+            font-weight: 600;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        /* 弹窗样式 */
-        .modal {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            pointer-events: auto;
-            color: white;
+        .hud-value { font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+        .highlight { color: #FFD60A; }
+
+        /* 关卡指示器：居中 */
+        .level-badge {
+            position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px));
+            left: 50%; transform: translateX(-50%);
+            background: rgba(255,255,255,0.15);
+            padding: 4px 12px; border-radius: 12px;
+            font-size: 12px; color: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        /* --- 弹窗体系 (iOS Alert / Card 风格) --- */
+        .modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; pointer-events: auto;
+            opacity: 0; transition: opacity 0.3s ease;
+            pointer-events: none; /* 默认不交互 */
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .ios-card {
+            width: 85%; max-width: 340px;
+            background: rgba(35, 35, 35, 0.85);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-radius: 24px;
+            padding: 30px 24px;
             text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
+        .modal-overlay.active .ios-card { transform: scale(1); }
 
-        .modal h1 { font-size: 32px; color: #FFD700; margin-bottom: 10px; }
-        .modal p { font-size: 16px; color: #ddd; margin: 5px 0 20px; line-height: 1.5; }
-        
-        .btn {
-            background: #ff5722;
-            color: white;
-            border: none;
-            padding: 12px 40px;
-            font-size: 20px;
-            border-radius: 25px;
-            font-weight: bold;
-            box-shadow: 0 4px 0 #bf360c;
-            cursor: pointer;
+        .card-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+        .card-title {
+            margin: 0 0 8px; color: #fff; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
         }
-        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .card-subtitle {
+            margin: 0 0 24px; color: #AEAEB2; font-size: 15px; line-height: 1.5;
+        }
+        .highlight-text { color: #fff; font-weight: 600; }
+
+        /* iOS 按钮 */
+        .ios-btn {
+            display: block; width: 100%;
+            padding: 14px 0; margin-top: 12px;
+            border: none; border-radius: 16px;
+            font-size: 17px; font-weight: 600;
+            cursor: pointer; transition: transform 0.1s, opacity 0.2s;
+        }
+        .ios-btn:active { transform: scale(0.96); opacity: 0.8; }
+        
+        .btn-primary { background: var(--ios-blue); color: white; }
+        .btn-success { background: var(--ios-green); color: white; }
+        .btn-danger { background: var(--ios-red); color: white; }
+
         .hidden { display: none !important; }
 
+        /* 动画飘字优化 */
+        .effect-text {
+            font-family: "SF Pro Rounded", var(--font-stack);
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -98,168 +144,218 @@
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
+    <!-- UI 层 -->
     <div id="ui-layer">
-        <div class="hud-top">
-            <div>💰 <span id="score">0</span> / <span id="target">500</span></div>
-            <div>⏳ <span id="time">60</span>s</div>
+        <div class="hud-header">
+            <!-- 分数胶囊 -->
+            <div class="glass-pill">
+                <span>🎯</span>
+                <span class="hud-value"><span id="score">0</span> / <span id="target" style="opacity:0.7">1000</span></span>
+            </div>
+            <!-- 时间胶囊 -->
+            <div class="glass-pill">
+                <span>⏳</span>
+                <span class="hud-value"><span id="time" class="highlight">60</span>s</span>
+            </div>
+        </div>
+        
+        <!-- 关卡小标签 -->
+        <div class="level-badge">
+            Level <span id="level-display">1</span> • Bots: <span id="bot-count">1</span>
         </div>
     </div>
 
-    <!-- 开始界面 -->
-    <div id="start-screen" class="modal">
-        <h1>🎣 钓鱼乱斗</h1>
-        <p>竖屏 8 人大乱斗！<br>点击屏幕出钩，别管公平性，抢就完了！</p>
-        <button class="btn" onclick="Game.start()">开始抢鱼</button>
+    <!-- 1. 开始界面 -->
+    <div id="start-screen" class="modal-overlay active">
+        <div class="ios-card">
+            <span class="card-icon">🎣</span>
+            <h1 class="card-title">钓鱼乱斗</h1>
+            <p class="card-subtitle">
+                除了鱼，海里还有各种奇葩宝藏。<br>
+                <span class="highlight-text">电视机 📺 • 玫瑰花 🌹 • 钻石 💎</span><br><br>
+                点击屏幕发射钩爪<br>越贵的东西越难钓！
+            </p>
+            <button class="ios-btn btn-primary" onclick="Game.startLevel(1)">开始挑战</button>
+        </div>
     </div>
 
-    <!-- 结算界面 -->
-    <div id="end-screen" class="modal hidden">
-        <h1 id="end-title">游戏结束</h1>
-        <p id="end-reason">...</p>
-        <p>最终得分: <span id="final-score">0</span></p>
-        <button class="btn" onclick="Game.start()">再来一局</button>
+    <!-- 2. 失败界面 -->
+    <div id="fail-screen" class="modal-overlay">
+        <div class="ios-card">
+            <span class="card-icon">💔</span>
+            <h1 class="card-title">挑战失败</h1>
+            <p class="card-subtitle">
+                钱没赚够，回家要跪搓衣板了。<br>
+                本局得分: <span id="fail-score" class="highlight-text" style="color:#FF3B30; font-size:18px">0</span>
+            </p>
+            <button class="ios-btn btn-danger" onclick="Game.retryLevel()">再试一次</button>
+        </div>
+    </div>
+    
+    <!-- 3. 成功界面 -->
+    <div id="win-screen" class="modal-overlay">
+        <div class="ios-card">
+            <span class="card-icon">🎉</span>
+            <h1 class="card-title">通关成功</h1>
+            <p class="card-subtitle">
+                简直是捕鱼达人！<br>
+                准备好迎接更疯狂的下一关了吗？
+            </p>
+            <button class="ios-btn btn-success" onclick="Game.nextLevel()">下一关</button>
+        </div>
     </div>
 </div>
 
 <script>
-/**
- * 游戏核心逻辑 - 8人乱斗版
- */
-
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// 屏幕适配
 let W, H;
+// 适配高DPI屏幕 (Retina Display)
 function resize() {
-    W = canvas.width = window.innerWidth;
-    H = canvas.height = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    // 逻辑宽高
+    W = window.innerWidth;
+    H = window.innerHeight;
+    // 物理像素宽高
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    // 缩放绘图上下文，保证文字清晰
+    ctx.scale(dpr, dpr);
 }
 window.addEventListener('resize', resize);
 resize();
 
-// --- 游戏常量配置 ---
-const CONFIG = {
-    anglerCount: 8,         // 总人数
-    rowSize: 4,             // 每行人数
-    playerIndex: 5,         // 玩家索引 (0-3是后排, 4-7是前排, 5是前排左二)
-    hookBaseSpeed: 12,      // 钩子基础速度
-    swingSpeed: 0.025,      // 摆动速度
-    spawnRate: 60,          // 鱼刷新频率(帧)
+// --- 物品数据库 ---
+const LOOT_POOLS = {
+    trash: [
+        { emoji: '👢', score: 10,  weight: 6.0, speed: 0.5, radius: 22 },
+        { emoji: '💩', score: 5,   weight: 6.0, speed: 0.4, radius: 20 },
+        { emoji: '🧦', score: 2,   weight: 5.0, speed: 0.6, radius: 18 },
+        { emoji: '🩲', score: 50,  weight: 5.5, speed: 0.5, radius: 20 },
+        { emoji: '🧱', score: 1,   weight: 8.0, speed: 0.2, radius: 25 },
+    ],
+    fish: [
+        { emoji: '🐡', score: 150, weight: 3.5, speed: 0.8, radius: 30 },
+        { emoji: '🐟', score: 300, weight: 2.0, speed: 1.8, radius: 22 },
+        { emoji: '🐠', score: 600, weight: 1.0, speed: 2.8, radius: 15 },
+        { emoji: '🦑', score: 400, weight: 1.5, speed: 2.2, radius: 18 },
+    ],
+    rare: [
+        { emoji: '📺', score: 2000, weight: 0.8, speed: 3.5, radius: 25, isRare: true },
+        { emoji: '🌹', score: 5000, weight: 0.1, speed: 5.0, radius: 10, isRare: true },
+        { emoji: '👦', score: 3000, weight: 1.0, speed: 3.0, radius: 20, isRare: true },
+        { emoji: '👧', score: 3000, weight: 1.0, speed: 3.0, radius: 20, isRare: true },
+        { emoji: '💎', score: 4000, weight: 0.2, speed: 4.5, radius: 12, isRare: true },
+        { emoji: '🎮', score: 2500, weight: 0.5, speed: 4.0, radius: 15, isRare: true },
+        { emoji: '💰', score: 1500, weight: 0.5, speed: 3.8, radius: 15, isRare: true },
+    ]
 };
 
-// 物品属性定义
-const ITEMS_DB = {
-    small: { emoji: '🐟', score: 100, weight: 1.0, speed: 2.5, radius: 15 },
-    big:   { emoji: '🦈', score: 350, weight: 3.5, speed: 1.0, radius: 28 }, // 重，慢，值钱
-    money: { emoji: '💎', score: 800, weight: 0.5, speed: 4.0, radius: 12 }, // 极快，轻，难瞄
-    trash: { emoji: '👢', score: 10,  weight: 7.0, speed: 0.6, radius: 20 }  // 极重，垃圾
+const CONFIG = {
+    hookSpeed: 14,
+    swingSpeed: 0.025,
 };
 
 // --- 类定义 ---
 
 class Angler {
-    constructor(index) {
-        this.index = index;
-        this.isPlayer = (index === CONFIG.playerIndex);
+    constructor(id, totalCount, isPlayer) {
+        this.id = id;
+        this.isPlayer = isPlayer;
         
-        // 计算行号和列号
-        const row = Math.floor(index / CONFIG.rowSize); // 0=后排(上), 1=前排(下)
-        const col = index % CONFIG.rowSize;
+        // 布局参数
+        const rowSize = 5;
+        const totalRows = Math.ceil(totalCount / rowSize);
+        this.row = Math.floor(id / rowSize);
         
-        // 布局计算：两行排列
-        // 后排(row0) Y坐标较小，前排(row1) Y坐标较大
-        this.y = row === 0 ? H * 0.06 : H * 0.14; 
-        // X坐标均匀分布
-        this.x = (W / (CONFIG.rowSize + 1)) * (col + 1);
+        this.col = id % rowSize;
+        this.countInThisRow = (this.row === totalRows - 1) ? (totalCount - (this.row * rowSize)) : rowSize;
         
-        // 颜色区分
-        this.color = this.isPlayer ? '#FFD700' : (row === 0 ? '#555' : '#888'); // 玩家金色，后排深灰，前排浅灰
+        // 增加一点顶部偏移，避开UI
+        this.y = 120 + this.row * 60; 
+        this.x = 0; 
+
+        // 颜色优化：使用更柔和的色调
+        this.color = this.isPlayer ? '#FFCC00' : (this.row % 2 === 0 ? '#AAB2BD' : '#656D78');
         
-        // 物理状态
-        this.angle = Math.PI / 2; // 初始向下
+        this.angle = Math.PI/2;
         this.swingDir = Math.random() > 0.5 ? 1 : -1;
-        this.state = 0; // 0:摆动, 1:发射, 2:拉回, 3:暂停
-        
+        this.state = 0;
         this.lineLen = 20;
-        this.maxLen = H * 1.1; // 稍微超出屏幕
+        this.maxLen = H * 1.2;
         this.caughtItem = null;
-        
-        // AI 随机性
-        this.aiTimer = Math.random() * 100;
+        this.aiTimer = Math.random() * 60 + 20;
     }
 
     update() {
-        // 1. 摆动状态
+        // --- 完美居中逻辑 ---
+        const maxLayoutWidth = Math.min(W, 600); 
+        const offsetLeft = (W - maxLayoutWidth) / 2;
+        this.x = offsetLeft + (maxLayoutWidth / (this.countInThisRow + 1)) * (this.col + 1);
+        // ------------------
+
         if (this.state === 0) {
-            const limit = 0.4; // 限制摆动角度，防止甩到天上
+            const limit = 0.6;
             if (this.angle > Math.PI - limit) this.swingDir = -1;
             if (this.angle < limit) this.swingDir = 1;
             this.angle += CONFIG.swingSpeed * this.swingDir;
             
-            // AI 自动射击
             if (!this.isPlayer) {
                 this.aiTimer--;
                 if (this.aiTimer <= 0) {
                     this.shoot();
-                    this.aiTimer = Math.random() * 120 + 40; // 重置AI思考时间
+                    let diffFactor = Math.max(0, 40 - Game.level * 0.3);
+                    this.aiTimer = Math.random() * 80 + diffFactor;
                 }
             }
         }
-        // 2. 发射状态
         else if (this.state === 1) {
-            this.lineLen += CONFIG.hookBaseSpeed;
-            
-            // 计算钩子尖端坐标
+            this.lineLen += CONFIG.hookSpeed;
             const tx = this.x + Math.cos(this.angle) * this.lineLen;
             const ty = this.y + Math.sin(this.angle) * this.lineLen;
             
-            // 边界/空钩判定
-            if (this.lineLen >= this.maxLen || tx < 0 || tx > W) {
-                this.state = 3; // 进入暂停
-                this.pauseTimer = 30; // 停顿0.5秒(30帧)
+            if (this.lineLen >= this.maxLen || tx<0 || tx>W) {
+                this.state = 3; this.waitTimer = 15;
             } else {
-                // 碰撞检测 (只检测未被抓的物品)
                 for (let item of Game.items) {
-                    if (!item.caught && Math.hypot(tx - item.x, ty - item.y) < item.radius + 5) {
-                        // 抓到了！
+                    if (!item.caught && Math.hypot(tx-item.x, ty-item.y) < item.radius + 5) {
                         item.caught = true;
                         this.caughtItem = item;
-                        this.state = 2; // 进入拉回
-                        if(this.isPlayer) Game.addEffect(tx, ty, "抓住!");
+                        this.state = 2;
+                        if(this.isPlayer) {
+                            let msg = item.isRare ? "Nice!" : "Gotcha!";
+                            Game.addEffect(tx, ty, msg, item.isRare ? "#FFD700" : "#fff");
+                        }
                         break;
                     }
                 }
             }
         }
-        // 3. 暂停状态 (空钩惩罚)
         else if (this.state === 3) {
-            this.pauseTimer--;
-            if (this.pauseTimer <= 0) this.state = 2; // 开始回收
+            this.waitTimer--;
+            if (this.waitTimer<=0) this.state = 2;
         }
-        // 4. 拉回状态
         else if (this.state === 2) {
-            let speed = CONFIG.hookBaseSpeed * 1.5; // 空钩回收很快
-            if (this.caughtItem) {
-                speed = CONFIG.hookBaseSpeed / this.caughtItem.weight; // 根据重量减速
-                // 更新物品位置
+            let speed = CONFIG.hookSpeed * 1.5;
+            if (this.caughtItem) speed = CONFIG.hookSpeed / this.caughtItem.weight;
+            
+            this.lineLen -= speed;
+            if(this.caughtItem) {
                 this.caughtItem.x = this.x + Math.cos(this.angle) * this.lineLen;
                 this.caughtItem.y = this.y + Math.sin(this.angle) * this.lineLen;
             }
             
-            this.lineLen -= speed;
-            
             if (this.lineLen <= 20) {
-                // 回收完成
                 this.lineLen = 20;
                 this.state = 0;
                 if (this.caughtItem) {
-                    // 结算
                     if (this.isPlayer) {
                         Game.score += this.caughtItem.score;
-                        Game.addEffect(this.x, this.y + 40, `+${this.caughtItem.score}`);
+                        let color = this.caughtItem.isRare ? "#FFD60A" : "#FFFFFF";
+                        let scale = this.caughtItem.isRare ? 1.5 : 1;
+                        Game.addEffect(this.x, this.y-40, `+${this.caughtItem.score}`, color, scale);
                     }
-                    // 从数组中彻底移除
                     Game.items = Game.items.filter(i => i !== this.caughtItem);
                     this.caughtItem = null;
                 }
@@ -267,42 +363,32 @@ class Angler {
         }
     }
 
-    shoot() {
-        if (this.state === 0) this.state = 1;
-    }
+    shoot() { if (this.state === 0) this.state = 1; }
 
     draw() {
         const tx = this.x + Math.cos(this.angle) * this.lineLen;
         const ty = this.y + Math.sin(this.angle) * this.lineLen;
-
-        // 画线
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(tx, ty);
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = this.isPlayer ? 3 : 1.5;
-        ctx.stroke();
-
-        // 画钩子
-        ctx.beginPath();
-        ctx.arc(tx, ty, 5, 0, Math.PI * 2);
-        ctx.fillStyle = this.isPlayer ? 'red' : '#333';
-        ctx.fill();
-
-        // 画人 (Emoji)
-        ctx.font = "24px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        let avatar = this.isPlayer ? "🤠" : "🤖";
-        ctx.fillText(avatar, this.x, this.y - 15);
         
-        // 玩家高亮指示
+        // 鱼线
+        ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(tx, ty);
+        ctx.strokeStyle = this.isPlayer ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = this.isPlayer ? 2 : 1;
+        ctx.stroke();
+        
+        // 钩子
+        ctx.beginPath(); ctx.arc(tx, ty, 5, 0, Math.PI*2);
+        ctx.fillStyle = this.isPlayer ? '#FF3B30' : '#8E8E93'; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+        
+        // 人物/机器人 Avatar
+        ctx.font = "24px Apple Color Emoji, Segoe UI Emoji"; 
+        ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillText(this.isPlayer?"🤠":"🤖", this.x, this.y-20);
+        
+        // 玩家箭头指示
         if (this.isPlayer) {
-            ctx.fillStyle = "#FFFF00";
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y - 45);
-            ctx.lineTo(this.x - 8, this.y - 55);
-            ctx.lineTo(this.x + 8, this.y - 55);
+            ctx.fillStyle="#34C759"; ctx.beginPath();
+            ctx.moveTo(this.x, this.y-50); ctx.lineTo(this.x-6, this.y-60); ctx.lineTo(this.x+6, this.y-60);
             ctx.fill();
         }
     }
@@ -310,200 +396,222 @@ class Angler {
 
 class Item {
     constructor() {
-        // 随机类型权重
         const r = Math.random();
-        let type;
-        if (r < 0.1) type = ITEMS_DB.money;      // 10%
-        else if (r < 0.25) type = ITEMS_DB.trash; // 15%
-        else if (r < 0.55) type = ITEMS_DB.big;   // 30%
-        else type = ITEMS_DB.small;              // 45%
-
-        Object.assign(this, type);
         
-        // 关卡难度加成：鱼游得更快
-        this.speed *= (1 + (Game.level - 1) * 0.15);
+        let rareChance = 0.05 + (Game.level * 0.005);
+        if (rareChance > 0.6) rareChance = 0.6;
+        let trashChance = 0.2;
 
-        // 随机深度 (避开顶部钓鱼者区域)
-        this.y = Math.random() * (H - 200) + 180;
+        let typeData;
+        let pool;
+
+        if (r < rareChance) { pool = LOOT_POOLS.rare; } 
+        else if (r < rareChance + trashChance) { pool = LOOT_POOLS.trash; } 
+        else { pool = LOOT_POOLS.fish; }
         
-        // 随机方向
+        typeData = pool[Math.floor(Math.random() * pool.length)];
+
+        Object.assign(this, typeData);
+        this.speed *= (1 + Game.level * 0.02); 
+
+        // 生成位置稍微下移，避开人物
+        const safeTop = 180 + (Math.ceil(Game.totalAnglers/5) * 60);
+        this.y = safeTop + Math.random() * (H - safeTop - 80);
+        
         this.dir = Math.random() > 0.5 ? 1 : -1;
-        this.x = this.dir === 1 ? -50 : W + 50;
-        
+        this.x = this.dir === 1 ? -40 : W + 40;
         this.caught = false;
     }
-
+    
     update() {
-        if (!this.caught) {
-            this.x += this.speed * this.dir;
-        }
-        // 游出屏幕销毁
-        if ((this.dir === 1 && this.x > W + 60) || (this.dir === -1 && this.x < -60)) {
-            return false;
-        }
-        return true;
+        if (!this.caught) this.x += this.speed * this.dir;
+        return (this.dir===1 && this.x<W+50) || (this.dir===-1 && this.x>-50);
     }
-
+    
     draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        // 方向翻转
-        if (this.dir === -1 && !this.caught) ctx.scale(-1, 1);
-        // 被抓挣扎效果
-        if (this.caught) ctx.rotate(Math.sin(Date.now()/100)*0.5);
+        ctx.save(); ctx.translate(this.x, this.y);
+        if(this.dir===-1 && !this.caught) ctx.scale(-1, 1);
+        if(this.caught) ctx.rotate(Math.sin(Game.frameCount*0.3)*0.5);
         
-        ctx.font = `${this.radius * 2}px Arial`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
+        // 阴影增加立体感
+        ctx.shadowColor = "rgba(0,0,0,0.2)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetY = 4;
+        
+        ctx.font = `${this.radius*2}px Apple Color Emoji, Segoe UI Emoji`;
+        ctx.textAlign="center"; ctx.textBaseline="middle";
         ctx.fillText(this.emoji, 0, 0);
+        
+        // 稀有物品光晕
+        if (this.isRare && !this.caught) {
+            ctx.shadowColor = "rgba(255, 215, 0, 0.6)";
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetY = 0;
+            ctx.globalCompositeOperation = 'screen'; 
+            ctx.fillText(this.emoji, 0, 0); 
+            ctx.globalCompositeOperation = 'source-over';
+        }
+        
         ctx.restore();
     }
 }
 
-// 浮动文字特效
-class Effect {
-    constructor(x, y, text) {
-        this.x = x; this.y = y; this.text = text;
-        this.life = 40;
-    }
-    update() { this.y -= 1; this.life--; }
-    draw() {
-        ctx.fillStyle = `rgba(255, 255, 255, ${this.life/40})`;
-        ctx.font = "bold 20px Arial";
-        ctx.fillText(this.text, this.x, this.y);
-    }
-}
-
-// --- 游戏主控制器 ---
+// --- 游戏主控 ---
 
 const Game = {
+    level: 1,
+    score: 0,
+    target: 0,
+    timeLeft: 60,
+    totalAnglers: 1,
+    
     anglers: [],
     items: [],
     effects: [],
-    loopId: null,
-    timerId: null,
-    score: 0,
-    target: 500,
-    time: 60,
-    level: 1,
-    frameCount: 0,
+    
     isPlaying: false,
+    timerId: null,
+    loopId: null,
+    frameCount: 0,
 
-    start() {
+    getBotCount(lvl) {
+        if (lvl <= 10) return Math.floor(1 + (lvl - 1) * (4 / 9));
+        else if (lvl <= 50) return Math.floor(5 + (lvl - 10) * (3 / 40));
+        else return Math.floor(8 + (lvl - 50) * (12 / 50));
+    },
+
+    // 辅助函数：显示/隐藏弹窗
+    showModal(id) {
+        document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
+        if(id) document.getElementById(id).classList.add('active');
+    },
+
+    startLevel(lvl) {
+        this.level = lvl;
         this.score = 0;
-        this.level = 1;
-        this.target = 500;
-        this.time = 60;
-        document.getElementById('start-screen').classList.add('hidden');
-        document.getElementById('end-screen').classList.add('hidden');
-        this.initLevel();
+        this.timeLeft = 60;
+        this.target = 1000 + (lvl * 300); 
+
+        let botCount = this.getBotCount(lvl);
+        if (botCount > 20) botCount = 20;
+        this.totalAnglers = botCount + 1;
+
+        this.showModal(null); // 关闭所有弹窗
+        
+        document.getElementById('level-display').innerText = lvl;
+        document.getElementById('bot-count').innerText = botCount;
+        
+        this.initEntities();
         this.isPlaying = true;
-        this.run();
         
         clearInterval(this.timerId);
         this.timerId = setInterval(() => {
             if(!this.isPlaying) return;
-            this.time--;
-            if(this.time <= 0) this.checkEnd();
+            this.timeLeft--;
+            
+            // 时间少于10秒变红
+            const timeEl = document.getElementById('time');
+            timeEl.style.color = this.timeLeft <= 10 ? '#FF3B30' : '#fff';
+            
+            if (this.timeLeft <= 0) this.checkResult();
         }, 1000);
+        
+        cancelAnimationFrame(this.loopId);
+        this.loop();
     },
 
-    initLevel() {
+    initEntities() {
         this.anglers = [];
         this.items = [];
         this.effects = [];
-        // 初始化8名钓鱼者
-        for(let i=0; i<CONFIG.anglerCount; i++) {
-            this.anglers.push(new Angler(i));
+        let playerIdx = Math.floor(this.totalAnglers / 2);
+        for (let i = 0; i < this.totalAnglers; i++) {
+            this.anglers.push(new Angler(i, this.totalAnglers, i === playerIdx));
         }
-        // 初始生成一波鱼
         for(let i=0; i<8; i++) this.items.push(new Item());
     },
 
-    nextLevel() {
-        this.level++;
-        this.target = Math.floor(this.target * 1.5);
-        this.time = 60;
-        alert(`🎉 通关成功！进入第 ${this.level} 关\n目标分数: ${this.target}`);
-        this.initLevel(); // 重置场上物品
-    },
+    retryLevel() { this.startLevel(this.level); },
+    nextLevel() { this.startLevel(this.level + 1); },
 
-    checkEnd() {
-        if (this.score >= this.target) {
-            this.nextLevel();
-        } else {
-            this.gameOver();
-        }
-    },
-
-    gameOver() {
+    checkResult() {
         this.isPlaying = false;
         clearInterval(this.timerId);
-        document.getElementById('end-screen').classList.remove('hidden');
-        document.getElementById('end-reason').innerText = "时间到，目标未达成...";
-        document.getElementById('final-score').innerText = this.score;
-        cancelAnimationFrame(this.loopId);
+        if (this.score >= this.target) {
+            this.showModal('win-screen');
+        } else {
+            document.getElementById('fail-score').innerText = this.score;
+            this.showModal('fail-screen');
+        }
     },
 
-    addEffect(x, y, text) {
-        this.effects.push(new Effect(x, y, text));
+    addEffect(x, y, text, color="#fff", scale=1) {
+        this.effects.push({x, y, text, color, scale, life: 60});
     },
 
-    run() {
+    loop() {
         if (!this.isPlaying) return;
+        ctx.clearRect(0,0,W,H);
+        this.frameCount++;
 
-        ctx.clearRect(0, 0, W, H);
-        
-        // 1. UI 更新
+        // Update UI logic
         document.getElementById('score').innerText = this.score;
         document.getElementById('target').innerText = this.target;
-        document.getElementById('time').innerText = this.time;
+        document.getElementById('time').innerText = this.timeLeft;
 
-        // 2. 生成新鱼
-        this.frameCount++;
-        if (this.frameCount % CONFIG.spawnRate === 0 && this.items.length < 15) {
-            this.items.push(new Item());
+        let spawnRate = Math.max(8, 60 - (this.totalAnglers * 2)); 
+        if (this.frameCount % spawnRate === 0) {
+            if (this.items.length < 25) this.items.push(new Item());
         }
 
-        // 3. 更新物品
-        this.items = this.items.filter(item => {
-            if(item.caught) return true; // 保持引用
-            return item.update();
+        this.items = this.items.filter(i => {
+            if (i.caught) return true;
+            return i.update();
         });
-        // 绘制物品 (先画物品，保证被钩子盖住)
-        this.items.forEach(item => { if(!item.caught) item.draw(); });
+        this.items.forEach(i => { if(!i.caught) i.draw(); });
 
-        // 4. 更新与绘制钓鱼者
-        // 关键逻辑：先画后排(index 0-3)，再画前排(index 4-7)，制造遮挡关系
-        // 由于布局是 index 0-3 row0, 4-7 row1
-        this.anglers.forEach(angler => angler.update());
-        
-        // 排序绘制，保证层级正确
-        const sortedAnglers = [...this.anglers].sort((a, b) => a.y - b.y);
-        
-        sortedAnglers.forEach(angler => {
-            angler.draw();
-            if(angler.caughtItem) angler.caughtItem.draw(); // 绘制被抓的物品
+        this.anglers.forEach(a => a.update());
+        let sortedAnglers = [...this.anglers].sort((a,b) => a.y - b.y);
+        sortedAnglers.forEach(a => {
+            a.draw();
+            if(a.caughtItem) a.caughtItem.draw();
         });
 
-        // 5. 特效
-        this.effects = this.effects.filter(e => e.life > 0);
-        this.effects.forEach(e => { e.update(); e.draw(); });
+        // 绘制特效
+        this.effects = this.effects.filter(e => e.life>0);
+        this.effects.forEach(e => {
+            e.y -= 1.0; 
+            e.life--;
+            ctx.save();
+            ctx.translate(e.x, e.y);
+            // 简单的弹跳缩放效果
+            let s = e.scale * (1 + Math.sin(e.life * 0.2) * 0.1);
+            ctx.scale(s, s);
+            ctx.fillStyle = e.color;
+            ctx.globalAlpha = Math.min(1, e.life/30);
+            ctx.font = "800 28px -apple-system, BlinkMacSystemFont"; // 加粗字体
+            
+            // 文字描边
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 4;
+            ctx.fillText(e.text, 0, 0);
+            ctx.restore();
+        });
 
-        this.loopId = requestAnimationFrame(() => this.run());
+        this.loopId = requestAnimationFrame(() => this.loop());
     }
 };
 
-// 交互事件
 function handleInput(e) {
     if (!Game.isPlaying) return;
-    e.preventDefault(); // 防止双击放大
-    const player = Game.anglers[CONFIG.playerIndex];
-    player.shoot();
+    // 不阻止点击UI按钮
+    if (e.target.tagName === 'BUTTON') return;
+    e.preventDefault();
+    const player = Game.anglers.find(a => a.isPlayer);
+    if (player) player.shoot();
 }
-
-canvas.addEventListener('mousedown', handleInput);
-canvas.addEventListener('touchstart', handleInput, {passive: false});
+// 使用 pointerdown 以获得更快的响应
+canvas.addEventListener('pointerdown', handleInput);
 
 </script>
 </body>
