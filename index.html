@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>钓鱼乱斗 - 进度保存版</title>
+    <title>钓鱼乱斗 - 生态平衡版</title>
     <style>
         :root {
             --ios-blue: #007AFF;
             --ios-yellow: #FFD60A; 
+            --ios-purple: #BF5AF2;
+            --ios-red: #FF3B30;
+            --ios-green: #34C759;
             --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
         }
 
@@ -31,7 +34,6 @@
             pointer-events: none; z-index: 10;
         }
 
-        /* 顶部通栏 */
         .hud-header {
             position: absolute; top: 0; left: 0; width: 100%;
             box-sizing: border-box;
@@ -49,16 +51,19 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         
-        /* 左上角排行榜 */
+        .center-btn {
+            position: absolute; left: 50%; transform: translateX(-50%);
+            top: max(15px, env(safe-area-inset-top));
+            pointer-events: auto; cursor: pointer; transition: transform 0.1s;
+        }
+        .center-btn:active { transform: translateX(-50%) scale(0.95); background: rgba(255,255,255,0.2); }
+
         .leaderboard-box {
-            position: absolute; 
-            left: 20px; 
+            position: absolute; left: 20px; 
             top: calc(max(15px, env(safe-area-inset-top)) + 50px);
-            background: rgba(0, 0, 0, 0.3); 
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px);
             border-radius: 12px; padding: 8px 10px; width: 110px;
-            border: 1px solid rgba(255,255,255,0.1);
-            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.1); pointer-events: none;
         }
         .lb-title { 
             font-size: 10px; color: rgba(255,255,255,0.6); 
@@ -75,16 +80,13 @@
         .buff-indicator.active { display: block; }
         @keyframes pulse { 0% {opacity:0.6;} 50% {opacity:1;} 100% {opacity:0.6;} }
 
-        /* 右上角关卡 */
         .level-badge {
-            position: absolute; 
-            right: 20px; 
+            position: absolute; right: 20px; 
             top: calc(max(15px, env(safe-area-inset-top)) + 50px);
             background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 8px;
             font-size: 11px; color: #fff; font-weight: 600; backdrop-filter: blur(8px);
         }
 
-        /* 弹窗 */
         .modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.75);
@@ -95,28 +97,54 @@
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
 
         .ios-card {
-            width: 82%; max-width: 320px;
-            background: rgba(40, 40, 40, 0.95); border-radius: 28px;
-            padding: 32px 24px; text-align: center;
+            width: 85%; max-width: 360px;
+            background: rgba(35, 35, 35, 0.95); border-radius: 28px;
+            padding: 30px 20px; text-align: center;
             border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 30px 80px rgba(0,0,0,0.6);
             transform: scale(0.95); transition: transform 0.3s;
+            display: flex; flex-direction: column;
+            max-height: 75vh;
         }
         .modal-overlay.active .ios-card { transform: scale(1); }
 
-        .card-icon { font-size: 50px; margin-bottom: 12px; display: block; }
-        .card-title { color: #fff; font-size: 24px; margin: 0 0 10px; font-weight: 800; }
-        .card-text { color: #b0b0b0; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+        .card-icon { font-size: 48px; margin-bottom: 10px; display: block; }
+        .card-title { color: #fff; font-size: 22px; margin: 0 0 8px; font-weight: 800; }
+        .card-text { color: #b0b0b0; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
         
         .btn {
-            width: 100%; padding: 16px 0; border: none; border-radius: 18px;
-            font-size: 17px; font-weight: 700; cursor: pointer; margin-top: 5px;
+            width: 100%; padding: 14px 0; border: none; border-radius: 16px;
+            font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 5px;
         }
         .btn-primary { background: var(--ios-blue); color: #fff; }
-        
-        .reset-link {
-            margin-top: 15px; font-size: 12px; color: #666; text-decoration: underline; cursor: pointer;
+        .btn-close { background: rgba(255,255,255,0.15); color: #fff; margin-top: 10px; padding: 10px 0; font-size: 14px; }
+        .reset-link { margin-top: 15px; font-size: 12px; color: #666; text-decoration: underline; cursor: pointer; }
+
+        .guide-container {
+            flex: 1; overflow-y: auto; text-align: left;
+            margin-bottom: 10px; border-radius: 12px;
+            background: rgba(0,0,0,0.3); padding: 5px;
+            scrollbar-width: none; -ms-overflow-style: none;
         }
+        .guide-container::-webkit-scrollbar { display: none; }
+
+        .guide-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .guide-left { display: flex; align-items: center; gap: 10px; }
+        .guide-emoji { font-size: 22px; width: 30px; text-align: center; }
+        .guide-score { color: #fff; font-weight: bold; font-size: 14px; }
+        .guide-level { color: #666; font-size: 10px; text-align: right; }
+        .guide-level.unlocked { color: var(--ios-green); }
+        .guide-level.locked { color: var(--ios-red); }
+
+        .t-trash { color: #888; }
+        .t-fish { color: #fff; }
+        .t-rare { color: var(--ios-purple); }
+        .t-legendary { color: var(--ios-yellow); text-shadow: 0 0 5px rgba(255,214,10,0.5); }
+
     </style>
 </head>
 <body>
@@ -135,6 +163,10 @@
                 <span class="hud-value"><span id="time" style="color:#fff">60</span>s</span>
             </div>
         </div>
+
+        <div class="glass-pill center-btn" onclick="Game.showGuide()">
+            <span>📘 战利品图鉴</span>
+        </div>
         
         <div class="leaderboard-box">
             <div class="lb-title">Top 3</div>
@@ -147,18 +179,27 @@
         </div>
     </div>
 
+    <!-- 图鉴弹窗 -->
+    <div id="guide-screen" class="modal-overlay">
+        <div class="ios-card">
+            <h1 class="card-title" style="font-size: 18px; margin-bottom: 10px;">战利品全收集 (54种)</h1>
+            <p style="font-size:12px; color:#888; margin:0 0 10px 0;">当前关卡: <span id="guide-curr-level" style="color:#fff">1</span> | 每2关解锁一个新物品</p>
+            <div id="guide-list" class="guide-container"></div>
+            <button class="btn btn-close" onclick="Game.closeGuide()">关闭</button>
+        </div>
+    </div>
+
     <!-- 开始界面 -->
     <div id="start-screen" class="modal-overlay active">
         <div class="ios-card">
             <span class="card-icon">🌊</span>
             <h1 class="card-title">深海乱斗</h1>
             <p class="card-text">
-                欢迎回来，钓鱼大师！<br>
-                系统已自动加载您的进度。
+                <b>生态平衡：</b> 鱼类大幅增加，垃圾减少。<br>
+                <b>解锁机制：</b> 挑战更高关卡，解锁更稀有的宝藏！
             </p>
-            <!-- 按钮文字会动态改变 -->
             <button id="start-btn" class="btn btn-primary" onclick="Game.startSavedLevel()">开始游戏</button>
-            <div class="reset-link" onclick="Game.resetProgress()">重置所有进度</div>
+            <div class="reset-link" onclick="Game.resetProgress()">重置进度 (Lv.1)</div>
         </div>
     </div>
 
@@ -168,7 +209,7 @@
             <span class="card-icon">🥀</span>
             <h1 class="card-title">挑战失败</h1>
             <p class="card-text">分数没达标...<br>最终得分: <span id="fail-score" style="color:#fff; font-weight:bold">0</span></p>
-            <button class="btn" style="background:#FF3B30; color:#fff" onclick="Game.retryLevel()">重试本关</button>
+            <button class="btn" style="background:#FF3B30; color:#fff" onclick="Game.retryLevel()">重试</button>
         </div>
     </div>
     
@@ -177,7 +218,7 @@
         <div class="ios-card">
             <span class="card-icon">🏆</span>
             <h1 class="card-title">通关成功</h1>
-            <p class="card-text">进度已保存！<br>准备迎接更难的挑战。</p>
+            <p class="card-text">进度已保存！<br>新战利品可能已经解锁了...</p>
             <button class="btn" style="background:#34C759; color:#fff" onclick="Game.nextLevel()">下一关</button>
         </div>
     </div>
@@ -199,30 +240,88 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// --- 物品数据 ---
-const LOOT_DB = [
-    // T1
-    { emoji: '👢', score: 10,  weight: 5.0, speed: 0.5, radius: 24, minLevel: 1, type: 'trash', rarityWeight: 50 },
-    { emoji: '🧱', score: 5,   weight: 8.0, speed: 0.2, radius: 26, minLevel: 1, type: 'trash', rarityWeight: 40 },
-    { emoji: '🐟', score: 200, weight: 2.0, speed: 1.5, radius: 22, minLevel: 1, type: 'fish', rarityWeight: 60 },
-    { emoji: '🐡', score: 100, weight: 3.5, speed: 0.8, radius: 28, minLevel: 1, type: 'fish', rarityWeight: 50 },
-    // T2
-    { emoji: '🦀', score: 400, weight: 4.0, speed: 0.6, radius: 25, minLevel: 5, type: 'fish', rarityWeight: 30 },
-    { emoji: '📱', score: 800, weight: 1.0, speed: 2.5, radius: 16, minLevel: 5, type: 'rare', rarityWeight: 20 },
-    { emoji: '🐠', score: 500, weight: 1.0, speed: 2.8, radius: 18, minLevel: 5, type: 'fish', rarityWeight: 35 },
-    { emoji: '🦑', score: 350, weight: 1.5, speed: 2.2, radius: 20, minLevel: 5, type: 'fish', rarityWeight: 35 },
-    // T3
-    { emoji: '🐢', score: 1000, weight: 6.0, speed: 0.4, radius: 36, minLevel: 10, type: 'fish', rarityWeight: 15 },
-    { emoji: '💰', score: 1200, weight: 0.8, speed: 3.5, radius: 18, minLevel: 10, type: 'rare', rarityWeight: 10 },
-    { emoji: '🎮', score: 1500, weight: 0.8, speed: 3.8, radius: 18, minLevel: 12, type: 'rare', rarityWeight: 8 },
-    // T4
-    { emoji: '📺', score: 2500, weight: 1.5, speed: 3.0, radius: 24, minLevel: 20, type: 'rare', rarityWeight: 5 },
-    { emoji: '💎', score: 4000, weight: 0.5, speed: 4.5, radius: 14, minLevel: 25, type: 'legendary', rarityWeight: 3 },
-    { emoji: '🌹', score: 5000, weight: 0.1, speed: 5.0, radius: 12, minLevel: 30, type: 'legendary', rarityWeight: 2 },
-    { emoji: '👽', score: 6666, weight: 0.5, speed: 6.0, radius: 16, minLevel: 40, type: 'legendary', rarityWeight: 1 },
-    { emoji: '🫀', score: 8888, weight: 0.3, speed: 5.5, radius: 14, minLevel: 50, type: 'legendary', rarityWeight: 1 },
-    { emoji: '🌞', score: 9999, weight: 10.0, speed: 0.8, radius: 55, minLevel: 60, type: 'legendary', rarityWeight: 1 },
+// --- 54种战利品 ---
+const RAW_LOOT = [
+    // --- 初始 Lv.1 (4个) ---
+    { emoji: '👢', score: 10,   weight: 5.0, speed: 0.5, radius: 24, type: 'trash' },
+    { emoji: '🥫', score: 15,   weight: 4.5, speed: 0.4, radius: 20, type: 'trash' },
+    { emoji: '🐟', score: 200,  weight: 2.0, speed: 1.5, radius: 22, type: 'fish' },
+    { emoji: '🐡', score: 150,  weight: 3.5, speed: 0.8, radius: 28, type: 'fish' },
+    // --- 每2关解锁1个 ---
+    { emoji: '🧱', score: 5,    weight: 8.0, speed: 0.2, radius: 26, type: 'trash' }, // Lv3
+    { emoji: '🦴', score: 8,    weight: 4.0, speed: 0.5, radius: 18, type: 'trash' }, // Lv5
+    { emoji: '🧦', score: 5,    weight: 3.0, speed: 0.6, radius: 16, type: 'trash' },
+    { emoji: '💩', score: 1,    weight: 6.0, speed: 0.3, radius: 22, type: 'trash' },
+    { emoji: '🐠', score: 400,  weight: 1.5, speed: 2.5, radius: 18, type: 'fish' },
+    { emoji: '🌿', score: 2,    weight: 2.0, speed: 0.5, radius: 20, type: 'trash' },
+    { emoji: '🦑', score: 350,  weight: 1.5, speed: 2.2, radius: 20, type: 'fish' },
+    { emoji: '🦀', score: 450,  weight: 4.0, speed: 0.6, radius: 25, type: 'fish' },
+    { emoji: '🦐', score: 500,  weight: 1.0, speed: 3.0, radius: 14, type: 'fish' },
+    { emoji: '🐚', score: 300,  weight: 5.0, speed: 0.1, radius: 15, type: 'fish' },
+    { emoji: '🐸', score: 600,  weight: 1.2, speed: 2.8, radius: 18, type: 'fish' },
+    { emoji: '🪼', score: 550,  weight: 2.0, speed: 1.0, radius: 22, type: 'fish' },
+    { emoji: '🦆', score: 700,  weight: 2.5, speed: 2.5, radius: 24, type: 'fish' },
+    { emoji: '⚓', score: 100,  weight: 10.0, speed: 0.1, radius: 30, type: 'trash' }, 
+    { emoji: '🍾', score: 50,   weight: 3.0, speed: 1.0, radius: 15, type: 'trash' },
+    { emoji: '🐢', score: 1000, weight: 6.0, speed: 0.4, radius: 36, type: 'fish' }, 
+    { emoji: '📱', score: 1200, weight: 0.8, speed: 2.5, radius: 15, type: 'rare' },
+    { emoji: '🦞', score: 1100, weight: 3.5, speed: 1.5, radius: 26, type: 'fish' },
+    { emoji: '📷', score: 1500, weight: 1.5, speed: 2.0, radius: 20, type: 'rare' },
+    { emoji: '🐙', score: 1300, weight: 4.0, speed: 1.2, radius: 30, type: 'fish' },
+    { emoji: '⌚', score: 1800, weight: 0.5, speed: 3.0, radius: 12, type: 'rare' },
+    { emoji: '🦈', score: 2000, weight: 5.0, speed: 3.5, radius: 40, type: 'fish' },
+    { emoji: '🔑', score: 800,  weight: 0.2, speed: 3.0, radius: 10, type: 'rare' },
+    { emoji: '🐬', score: 2200, weight: 2.5, speed: 4.0, radius: 32, type: 'fish' },
+    { emoji: '💍', score: 2500, weight: 0.1, speed: 4.0, radius: 8,  type: 'rare' },
+    { emoji: '🐳', score: 3000, weight: 8.0, speed: 1.0, radius: 50, type: 'fish' },
+    { emoji: '👛', score: 1600, weight: 1.0, speed: 2.0, radius: 18, type: 'rare' },
+    { emoji: '💳', score: 1400, weight: 0.1, speed: 3.5, radius: 12, type: 'rare' },
+    { emoji: '💻', score: 2000, weight: 3.0, speed: 1.0, radius: 28, type: 'rare' },
+    { emoji: '🚁', score: 2800, weight: 2.0, speed: 5.0, radius: 22, type: 'rare' },
+    { emoji: '💰', score: 3000, weight: 2.0, speed: 3.0, radius: 20, type: 'legendary' }, 
+    { emoji: '📺', score: 2500, weight: 2.5, speed: 1.5, radius: 28, type: 'rare' },
+    { emoji: '🚗', score: 3500, weight: 8.0, speed: 4.0, radius: 35, type: 'legendary' },
+    { emoji: '💎', score: 4000, weight: 0.5, speed: 4.5, radius: 14, type: 'legendary' },
+    { emoji: '👑', score: 4500, weight: 1.0, speed: 2.0, radius: 20, type: 'legendary' },
+    { emoji: '🏆', score: 3800, weight: 2.0, speed: 1.0, radius: 25, type: 'legendary' },
+    { emoji: '🚀', score: 5000, weight: 3.0, speed: 8.0, radius: 30, type: 'legendary' },
+    { emoji: '🛸', score: 5500, weight: 1.5, speed: 6.0, radius: 25, type: 'legendary' },
+    { emoji: '🌹', score: 6000, weight: 0.1, speed: 5.0, radius: 12, type: 'legendary' },
+    { emoji: '👽', score: 6666, weight: 0.5, speed: 7.0, radius: 16, type: 'legendary' },
+    { emoji: '👻', score: 4444, weight: 0.0, speed: 3.0, radius: 20, type: 'legendary' },
+    { emoji: '🤖', score: 5000, weight: 5.0, speed: 2.0, radius: 28, type: 'legendary' },
+    { emoji: '🫀', score: 8888, weight: 0.3, speed: 6.0, radius: 14, type: 'legendary' },
+    { emoji: '❤️', score: 7777, weight: 0.2, speed: 4.0, radius: 18, type: 'legendary' },
+    { emoji: '🗿', score: 5000, weight: 15.0, speed: 0.1, radius: 40, type: 'legendary' },
+    { emoji: '🦖', score: 9000, weight: 10.0, speed: 5.0, radius: 50, type: 'legendary' },
+    { emoji: '🌚', score: 9500, weight: 8.0, speed: 1.5, radius: 45, type: 'legendary' },
+    { emoji: '🌟', score: 8000, weight: 0.1, speed: 10.0, radius: 15, type: 'legendary' },
+    { emoji: '🌞', score: 9999, weight: 12.0, speed: 0.5, radius: 60, type: 'legendary' },
+    { emoji: '👑', score: 10000, weight: 1.0, speed: 5.0, radius: 20, type: 'legendary' },
 ];
+
+// 构建数据库
+const LOOT_DB = RAW_LOOT.map((item, index) => {
+    let lvl = 1;
+    if (index >= 4) {
+        lvl = 3 + (index - 4) * 2;
+    }
+    
+    // --- 核心优化：权重控制 (减少垃圾，增加鱼) ---
+    // 基础垃圾权重降为 15
+    let rWeight = 15;
+    // 鱼类权重提升至 60
+    if (item.type === 'fish') rWeight = 60;
+    // 稀有物品适中
+    if (item.type === 'rare') rWeight = 15;
+    // 传说物品极低
+    if (item.type === 'legendary') rWeight = 4;
+    
+    // 随着索引增加，权重微调降低，防止后期图鉴污染
+    rWeight = Math.max(1, rWeight - (index * 0.1));
+
+    return { ...item, minLevel: lvl, rarityWeight: rWeight };
+});
 
 const CONFIG = {
     baseHookSpeed: 14,
@@ -272,7 +371,6 @@ class Angler {
         this.col = id % rowSize;
         this.countInThisRow = (this.row === totalRows - 1) ? (totalCount - (this.row * rowSize)) : rowSize;
         
-        // UI避让
         this.baseTop = 220; 
         this.rowHeight = 70;
         this.y = this.baseTop + this.row * this.rowHeight; 
@@ -400,13 +498,25 @@ class Angler {
 
 class Item {
     constructor() {
+        // --- 核心生成逻辑 ---
         let availablePool = LOOT_DB.filter(i => Game.level >= i.minLevel);
+        
+        // 新物品概率Buff
+        let newlyUnlocked = availablePool.filter(i => i.minLevel === Game.level);
         let totalWeight = availablePool.reduce((sum, item) => sum + item.rarityWeight, 0);
+        
+        if (newlyUnlocked.length > 0) totalWeight += 50; 
+
         let random = Math.random() * totalWeight;
         let selected = availablePool[0];
-        for (let item of availablePool) {
-            if (random < item.rarityWeight) { selected = item; break; }
-            random -= item.rarityWeight;
+
+        if (newlyUnlocked.length > 0 && random > (totalWeight - 50)) {
+            selected = newlyUnlocked[0];
+        } else {
+            for (let item of availablePool) {
+                if (random < item.rarityWeight) { selected = item; break; }
+                random -= item.rarityWeight;
+            }
         }
 
         Object.assign(this, selected);
@@ -420,7 +530,6 @@ class Item {
         this.dir = Math.random() > 0.5 ? 1 : -1;
         this.x = this.dir === 1 ? -60 : W + 60;
         this.caught = false;
-        
         this.animOffset = Math.random() * 100;
     }
     
@@ -454,20 +563,45 @@ class Item {
 }
 
 const Game = {
-    level: 1, 
-    maxLevel: 1, // 最高解锁关卡
+    level: 1, maxLevel: 1, 
     playerScore: 0, target: 0, timeLeft: 60, totalAnglers: 1, leaderId: -1,
     anglers: [], items: [], effects: [], isPlaying: false, timerId: null, loopId: null, frameCount: 0,
 
     init() {
-        // 读取存档
         const saved = localStorage.getItem('fishing_max_level');
-        if (saved) {
-            this.maxLevel = parseInt(saved);
+        if (saved) { this.maxLevel = parseInt(saved); }
+        document.getElementById('start-btn').innerText = `继续第 ${this.maxLevel} 关`;
+    },
+
+    showGuide() {
+        document.getElementById('guide-curr-level').innerText = this.maxLevel;
+        let html = '';
+        LOOT_DB.forEach(item => {
+            let className = `t-${item.type}`;
+            let lockedClass = this.maxLevel >= item.minLevel ? 'unlocked' : 'locked';
+            let lockText = this.maxLevel >= item.minLevel ? '已解锁' : `Lv.${item.minLevel}`;
+            let emojiDisplay = this.maxLevel >= item.minLevel ? item.emoji : '🔒';
+            
+            html += `
+                <div class="guide-row">
+                    <div class="guide-left">
+                        <div class="guide-emoji">${emojiDisplay}</div>
+                        <span class="guide-score ${className}">${item.score}</span>
+                    </div>
+                    <span class="guide-level ${lockedClass}">${lockText}</span>
+                </div>
+            `;
+        });
+        document.getElementById('guide-list').innerHTML = html;
+        this.showModal('guide-screen');
+    },
+
+    closeGuide() {
+        if (this.isPlaying) {
+            document.getElementById('guide-screen').classList.remove('active');
+        } else {
+            this.showModal('start-screen');
         }
-        // 更新开始按钮文案
-        const btn = document.getElementById('start-btn');
-        btn.innerText = `继续第 ${this.maxLevel} 关`;
     },
 
     saveProgress(newLevel) {
@@ -486,10 +620,7 @@ const Game = {
         }
     },
 
-    // 绑定给开始按钮
-    startSavedLevel() {
-        this.startLevel(this.maxLevel);
-    },
+    startSavedLevel() { this.startLevel(this.maxLevel); },
 
     getBotCount(lvl) {
         let count = 1 + Math.floor(lvl / 5.5); 
@@ -558,17 +689,12 @@ const Game = {
     },
 
     retryLevel() { this.startLevel(this.level); },
-    
-    // 通关时调用
-    nextLevel() { 
-        this.startLevel(this.level + 1); 
-    },
+    nextLevel() { this.startLevel(this.level + 1); },
 
     checkResult() {
         this.isPlaying = false;
         clearInterval(this.timerId);
         if (this.playerScore >= this.target) {
-            // --- 核心修改：通关时保存进度 ---
             this.saveProgress(this.level + 1);
             this.showModal('win-screen');
         } else {
@@ -627,12 +753,12 @@ const Game = {
     }
 };
 
-// 页面加载时初始化
 Game.init();
 
 function handleInput(e) {
     if (!Game.isPlaying) return;
-    if (e.target.tagName === 'BUTTON') return;
+    if (e.target.closest('.glass-pill') || e.target.tagName === 'BUTTON') return;
+    
     e.preventDefault();
     const player = Game.anglers.find(a => a.isPlayer);
     if (player) player.shoot();
