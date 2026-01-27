@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>钓鱼乱斗 - 生态平衡版</title>
+    <title>Fishing Brawl - Layout Optimized</title>
     <style>
         :root {
             --ios-blue: #007AFF;
@@ -21,76 +21,108 @@
             touch-action: none; user-select: none; -webkit-user-select: none;
         }
 
-        #game-container {
-            position: relative; width: 100vw; height: 100vh;
-            background: #000; 
-        }
-
+        #game-container { position: relative; width: 100vw; height: 100vh; background: #000; }
         canvas { display: block; width: 100%; height: 100%; }
 
         /* --- UI 组件 --- */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10;
+            display: flex; flex-direction: column;
         }
 
+        /* --- 顶部单行布局核心 --- */
         .hud-header {
-            position: absolute; top: 0; left: 0; width: 100%;
-            box-sizing: border-box;
-            display: flex; justify-content: space-between; 
-            padding: max(15px, env(safe-area-inset-top)) 20px 0 20px;
+            width: 100%; box-sizing: border-box;
+            /* 关键：单行排列，垂直居中，两端对齐 */
+            display: flex; align-items: center; justify-content: space-between;
+            padding: max(10px, env(safe-area-inset-top)) 12px 0 12px;
+            pointer-events: none; 
+            gap: 8px; /* 组件间距 */
         }
 
+        /* 通用胶囊样式 (用于时间和分数) */
         .glass-pill {
             background: rgba(0, 0, 0, 0.4); 
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 6px 16px; border-radius: 30px;
-            color: #fff; font-size: 15px; font-weight: 700;
-            display: flex; align-items: center; gap: 8px;
+            padding: 0 12px; height: 36px; border-radius: 18px;
+            color: #fff; font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            white-space: nowrap;
         }
-        
-        .center-btn {
-            position: absolute; left: 50%; transform: translateX(-50%);
-            top: max(15px, env(safe-area-inset-top));
-            pointer-events: auto; cursor: pointer; transition: transform 0.1s;
-        }
-        .center-btn:active { transform: translateX(-50%) scale(0.95); background: rgba(255,255,255,0.2); }
 
+        /* 1. 圆形关卡标识 (弱化) */
+        .circle-badge {
+            width: 36px; height: 36px; min-width: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 14px; font-weight: 800;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* 2. 倒计时 (紧凑) */
+        .time-pill {
+            min-width: 60px;
+        }
+
+        /* 3. 积分进度 (核心，占据剩余空间) */
+        .score-pill {
+            flex: 1; /* 自动拉伸 */
+            background: rgba(0, 0, 0, 0.5); /* 稍微深一点强调 */
+            max-width: 200px; /* 限制最大宽度，防止在大屏太长 */
+        }
+
+        /* 4. 圆形图鉴按钮 (弱化入口) */
+        .guide-btn {
+            width: 36px; height: 36px; min-width: 36px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; cursor: pointer; pointer-events: auto;
+            transition: transform 0.1s;
+        }
+        .guide-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.2); }
+
+        /* 5. 语言切换 (紧凑) */
+        #lang-select {
+            height: 36px;
+            background: rgba(0, 0, 0, 0.4); color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 18px; padding: 0 8px;
+            font-size: 12px; outline: none; text-align: center;
+            backdrop-filter: blur(10px); pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* 排行榜位置微调 */
         .leaderboard-box {
-            position: absolute; left: 20px; 
-            top: calc(max(15px, env(safe-area-inset-top)) + 50px);
+            position: absolute; left: 12px; top: 70px; /* 紧贴顶部栏下方 */
             background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px);
             border-radius: 12px; padding: 8px 10px; width: 110px;
             border: 1px solid rgba(255,255,255,0.1); pointer-events: none;
         }
-        .lb-title { 
-            font-size: 10px; color: rgba(255,255,255,0.6); 
-            text-transform: uppercase; margin-bottom: 4px; font-weight: 600; 
-        }
+        .lb-title { font-size: 10px; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-bottom: 4px; font-weight: 600; }
         .lb-row { display: flex; justify-content: space-between; font-size: 11px; color: #fff; margin-bottom: 3px; }
         .lb-row.me { color: var(--ios-yellow); font-weight: 800; font-size: 12px; }
         
         .buff-indicator { 
-            font-size: 10px; color: #66FF66; margin-top: 4px; 
-            display: none; text-align: center; font-weight: bold;
+            font-size: 10px; color: #66FF66; margin-top: 4px; display: none; text-align: center; font-weight: bold;
             animation: pulse 1.5s infinite;
         }
         .buff-indicator.active { display: block; }
         @keyframes pulse { 0% {opacity:0.6;} 50% {opacity:1;} 100% {opacity:0.6;} }
 
-        .level-badge {
-            position: absolute; right: 20px; 
-            top: calc(max(15px, env(safe-area-inset-top)) + 50px);
-            background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 8px;
-            font-size: 11px; color: #fff; font-weight: 600; backdrop-filter: blur(8px);
-        }
-
+        /* 弹窗通用样式 */
         .modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(12px);
             display: flex; align-items: center; justify-content: center;
             z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
@@ -103,8 +135,7 @@
             border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 30px 80px rgba(0,0,0,0.6);
             transform: scale(0.95); transition: transform 0.3s;
-            display: flex; flex-direction: column;
-            max-height: 75vh;
+            display: flex; flex-direction: column; max-height: 75vh;
         }
         .modal-overlay.active .ios-card { transform: scale(1); }
 
@@ -112,39 +143,32 @@
         .card-title { color: #fff; font-size: 22px; margin: 0 0 8px; font-weight: 800; }
         .card-text { color: #b0b0b0; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
         
-        .btn {
-            width: 100%; padding: 14px 0; border: none; border-radius: 16px;
-            font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 5px;
-        }
+        .btn { width: 100%; padding: 14px 0; border: none; border-radius: 16px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 5px; }
         .btn-primary { background: var(--ios-blue); color: #fff; }
         .btn-close { background: rgba(255,255,255,0.15); color: #fff; margin-top: 10px; padding: 10px 0; font-size: 14px; }
         .reset-link { margin-top: 15px; font-size: 12px; color: #666; text-decoration: underline; cursor: pointer; }
 
-        .guide-container {
-            flex: 1; overflow-y: auto; text-align: left;
-            margin-bottom: 10px; border-radius: 12px;
-            background: rgba(0,0,0,0.3); padding: 5px;
-            scrollbar-width: none; -ms-overflow-style: none;
+        /* 图鉴列表 */
+        .guide-container { 
+            flex: 1; overflow-y: auto; text-align: left; margin-bottom: 10px; 
+            border-radius: 12px; background: rgba(0,0,0,0.3); padding: 5px; scrollbar-width: none; 
         }
         .guide-container::-webkit-scrollbar { display: none; }
-
-        .guide-row {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 8px 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
+        .guide-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .guide-left { display: flex; align-items: center; gap: 10px; }
         .guide-emoji { font-size: 22px; width: 30px; text-align: center; }
         .guide-score { color: #fff; font-weight: bold; font-size: 14px; }
         .guide-level { color: #666; font-size: 10px; text-align: right; }
         .guide-level.unlocked { color: var(--ios-green); }
-        .guide-level.locked { color: var(--ios-red); }
+        
+        .rtl-mode { direction: rtl; text-align: right; }
+        .rtl-mode .guide-left { flex-direction: row; } 
+        .rtl-mode .guide-level { text-align: left; }
 
         .t-trash { color: #888; }
         .t-fish { color: #fff; }
         .t-rare { color: var(--ios-purple); }
         .t-legendary { color: var(--ios-yellow); text-shadow: 0 0 5px rgba(255,214,10,0.5); }
-
     </style>
 </head>
 <body>
@@ -153,39 +177,57 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="ui-layer">
+        <!-- 顶部单行布局 -->
         <div class="hud-header">
-            <div class="glass-pill">
-                <span>🎯</span>
-                <span class="hud-value"><span id="score">0</span> / <span id="target">500</span></span>
+            <!-- 1. 关卡标识 (圆形) -->
+            <div class="circle-badge" title="Current Level">
+                <span id="level-display">1</span>
             </div>
-            <div class="glass-pill">
-                <span>⏳</span>
-                <span class="hud-value"><span id="time" style="color:#fff">60</span>s</span>
-            </div>
-        </div>
 
-        <div class="glass-pill center-btn" onclick="Game.showGuide()">
-            <span>📘 战利品图鉴</span>
+            <!-- 2. 倒计时 (胶囊) -->
+            <div class="glass-pill time-pill">
+                <span>⏳</span><span id="time" style="color:#fff">60</span>
+            </div>
+
+            <!-- 3. 积分进度 (弹性胶囊) -->
+            <div class="glass-pill score-pill">
+                <span>🎯</span>
+                <span class="hud-value">
+                    <span id="score">0</span> / <span id="target">500</span>
+                </span>
+            </div>
+
+            <!-- 4. 图鉴入口 (圆形按钮) -->
+            <div class="guide-btn" onclick="Game.showGuide()" title="Loot Guide">
+                <span>📘</span>
+            </div>
+
+            <!-- 5. 语言切换 -->
+            <select id="lang-select" onchange="Game.setLanguage(this.value)">
+                <option value="en">EN</option>
+                <option value="ar">AR</option>
+                <option value="id">ID</option>
+                <option value="tr">TR</option>
+            </select>
         </div>
         
+        <!-- 排行榜 -->
         <div class="leaderboard-box">
-            <div class="lb-title">Top 3</div>
+            <div class="lb-title" id="ui-lb-title">Top 3</div>
             <div id="lb-list"></div>
             <div id="buff-msg" class="buff-indicator">⚡️ +20% Speed</div>
-        </div>
-
-        <div class="level-badge">
-            Level <span id="level-display">1</span>
         </div>
     </div>
 
     <!-- 图鉴弹窗 -->
     <div id="guide-screen" class="modal-overlay">
         <div class="ios-card">
-            <h1 class="card-title" style="font-size: 18px; margin-bottom: 10px;">战利品全收集 (54种)</h1>
-            <p style="font-size:12px; color:#888; margin:0 0 10px 0;">当前关卡: <span id="guide-curr-level" style="color:#fff">1</span> | 每2关解锁一个新物品</p>
+            <h1 class="card-title" id="guide-title">Loot Collection</h1>
+            <p style="font-size:12px; color:#888; margin:0 0 10px 0;">
+                <span id="guide-subtitle">Current Level:</span> <span id="guide-curr-level" style="color:#fff">1</span>
+            </p>
             <div id="guide-list" class="guide-container"></div>
-            <button class="btn btn-close" onclick="Game.closeGuide()">关闭</button>
+            <button class="btn btn-close" onclick="Game.closeGuide()" id="guide-close-btn">Close</button>
         </div>
     </div>
 
@@ -193,13 +235,13 @@
     <div id="start-screen" class="modal-overlay active">
         <div class="ios-card">
             <span class="card-icon">🌊</span>
-            <h1 class="card-title">深海乱斗</h1>
+            <h1 class="card-title" id="start-title">Fishing Brawl</h1>
             <p class="card-text">
-                <b>生态平衡：</b> 鱼类大幅增加，垃圾减少。<br>
-                <b>解锁机制：</b> 挑战更高关卡，解锁更稀有的宝藏！
+                <span id="start-text-1">Welcome back!</span><br>
+                <span id="start-text-2">Progress saved automatically.</span>
             </p>
-            <button id="start-btn" class="btn btn-primary" onclick="Game.startSavedLevel()">开始游戏</button>
-            <div class="reset-link" onclick="Game.resetProgress()">重置进度 (Lv.1)</div>
+            <button id="start-btn" class="btn btn-primary" onclick="Game.startSavedLevel()">Start Game</button>
+            <div class="reset-link" onclick="Game.resetProgress()" id="reset-btn">Reset Progress</div>
         </div>
     </div>
 
@@ -207,9 +249,12 @@
     <div id="fail-screen" class="modal-overlay">
         <div class="ios-card">
             <span class="card-icon">🥀</span>
-            <h1 class="card-title">挑战失败</h1>
-            <p class="card-text">分数没达标...<br>最终得分: <span id="fail-score" style="color:#fff; font-weight:bold">0</span></p>
-            <button class="btn" style="background:#FF3B30; color:#fff" onclick="Game.retryLevel()">重试</button>
+            <h1 class="card-title" id="fail-title">Failed</h1>
+            <p class="card-text">
+                <span id="fail-text">Score not met...</span><br>
+                <span id="fail-score-label">Score:</span> <span id="fail-score" style="color:#fff; font-weight:bold">0</span>
+            </p>
+            <button class="btn" style="background:#FF3B30; color:#fff" onclick="Game.retryLevel()" id="fail-btn">Retry</button>
         </div>
     </div>
     
@@ -217,14 +262,57 @@
     <div id="win-screen" class="modal-overlay">
         <div class="ios-card">
             <span class="card-icon">🏆</span>
-            <h1 class="card-title">通关成功</h1>
-            <p class="card-text">进度已保存！<br>新战利品可能已经解锁了...</p>
-            <button class="btn" style="background:#34C759; color:#fff" onclick="Game.nextLevel()">下一关</button>
+            <h1 class="card-title" id="win-title">Success!</h1>
+            <p class="card-text" id="win-text">Level Complete!<br>Get ready for next challenge.</p>
+            <button class="btn" style="background:#34C759; color:#fff" onclick="Game.nextLevel()" id="win-btn">Next Level</button>
         </div>
     </div>
 </div>
 
 <script>
+const IMAGES = { player: new Image(), bot: new Image() };
+IMAGES.player.src = 'https://cos-cdn.kk6277.com/feishu/img_v3_02ub_a76a6e8e-98b8-40a0-aa3b-701048eb5b9g.png';
+IMAGES.bot.src = 'https://cos-cdn.kk6277.com/feishu/img_v3_02ub_03b621f8-36a4-4ee9-8a2c-430c97cdd3ag.png';
+
+const TRANSLATIONS = {
+    en: {
+        lb_title: "Top 3", buff_msg: "⚡️ +20% Speed",
+        guide_title: "Loot Collection", guide_subtitle: "Current Level:", guide_close: "Close",
+        start_title: "Fishing Brawl", start_t1: "Welcome back!", start_t2: "Difficulty increases with level.",
+        start_btn_prefix: "Start Level", reset_btn: "Reset Progress (Lv.1)",
+        fail_title: "Failed", fail_text: "Target score not reached...", fail_label: "Final Score:", fail_btn: "Retry",
+        win_title: "Success!", win_text: "Level Complete! Progress saved.", win_btn: "Next Level",
+        you: "YOU", bot: "Bot", unlocked: "Unlocked", locked_prefix: "Unlock Lv."
+    },
+    ar: {
+        lb_title: "أفضل 3", buff_msg: "⚡️ +20% سرعة",
+        guide_title: "مجموعة الغنائم", guide_subtitle: "المستوى الحالي:", guide_close: "إغلاق",
+        start_title: "صراع الصيد", start_t1: "أهلاً بك مجدداً!", start_t2: "تزداد الصعوبة مع المستوى.",
+        start_btn_prefix: "بدء المستوى", reset_btn: "إعادة تعيين (مستوى 1)",
+        fail_title: "فشل", fail_text: "لم تصل للنتيجة المطلوبة...", fail_label: "النتيجة النهائية:", fail_btn: "إعادة المحاولة",
+        win_title: "نجاح!", win_text: "تم إكمال المستوى! تم الحفظ.", win_btn: "المستوى التالي",
+        you: "أنت", bot: "بوت", unlocked: "مفتوح", locked_prefix: "فتح م."
+    },
+    id: {
+        lb_title: "3 Teratas", buff_msg: "⚡️ +20% Kec.",
+        guide_title: "Koleksi Jarahan", guide_subtitle: "Level Saat Ini:", guide_close: "Tutup",
+        start_title: "Fishing Brawl", start_t1: "Selamat datang kembali!", start_t2: "Kesulitan meningkat tiap level.",
+        start_btn_prefix: "Mulai Level", reset_btn: "Reset Progres (Lv.1)",
+        fail_title: "Gagal", fail_text: "Skor target tidak tercapai...", fail_label: "Skor Akhir:", fail_btn: "Coba Lagi",
+        win_title: "Berhasil!", win_text: "Level Selesai! Progres disimpan.", win_btn: "Level Selanjutnya",
+        you: "ANDA", bot: "Bot", unlocked: "Terbuka", locked_prefix: "Buka Lv."
+    },
+    tr: {
+        lb_title: "İlk 3", buff_msg: "⚡️ +%20 Hız",
+        guide_title: "Ganimet Koleksiyonu", guide_subtitle: "Mevcut Seviye:", guide_close: "Kapat",
+        start_title: "Balık Savaşı", start_t1: "Tekrar hoşgeldiniz!", start_t2: "Zorluk seviye ile artar.",
+        start_btn_prefix: "Başla: Sv.", reset_btn: "Sıfırla (Sv.1)",
+        fail_title: "Başarısız", fail_text: "Hedef puana ulaşılamadı...", fail_label: "Son Puan:", fail_btn: "Tekrar Dene",
+        win_title: "Başarılı!", win_text: "Seviye Tamamlandı! Kaydedildi.", win_btn: "Sonraki Seviye",
+        you: "SEN", bot: "Bot", unlocked: "Açıldı", locked_prefix: "Kilit Lv."
+    }
+};
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -240,16 +328,16 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// --- 54种战利品 ---
+// --- 54种战利品数据 ---
 const RAW_LOOT = [
-    // --- 初始 Lv.1 (4个) ---
+    // Lv.1 (4个)
     { emoji: '👢', score: 10,   weight: 5.0, speed: 0.5, radius: 24, type: 'trash' },
     { emoji: '🥫', score: 15,   weight: 4.5, speed: 0.4, radius: 20, type: 'trash' },
     { emoji: '🐟', score: 200,  weight: 2.0, speed: 1.5, radius: 22, type: 'fish' },
     { emoji: '🐡', score: 150,  weight: 3.5, speed: 0.8, radius: 28, type: 'fish' },
-    // --- 每2关解锁1个 ---
-    { emoji: '🧱', score: 5,    weight: 8.0, speed: 0.2, radius: 26, type: 'trash' }, // Lv3
-    { emoji: '🦴', score: 8,    weight: 4.0, speed: 0.5, radius: 18, type: 'trash' }, // Lv5
+    // 每2关解锁
+    { emoji: '🧱', score: 5,    weight: 8.0, speed: 0.2, radius: 26, type: 'trash' }, 
+    { emoji: '🦴', score: 8,    weight: 4.0, speed: 0.5, radius: 18, type: 'trash' }, 
     { emoji: '🧦', score: 5,    weight: 3.0, speed: 0.6, radius: 16, type: 'trash' },
     { emoji: '💩', score: 1,    weight: 6.0, speed: 0.3, radius: 22, type: 'trash' },
     { emoji: '🐠', score: 400,  weight: 1.5, speed: 2.5, radius: 18, type: 'fish' },
@@ -300,126 +388,100 @@ const RAW_LOOT = [
     { emoji: '👑', score: 10000, weight: 1.0, speed: 5.0, radius: 20, type: 'legendary' },
 ];
 
-// 构建数据库
 const LOOT_DB = RAW_LOOT.map((item, index) => {
     let lvl = 1;
     if (index >= 4) {
         lvl = 3 + (index - 4) * 2;
     }
-    
-    // --- 核心优化：权重控制 (减少垃圾，增加鱼) ---
-    // 基础垃圾权重降为 15
-    let rWeight = 15;
-    // 鱼类权重提升至 60
-    if (item.type === 'fish') rWeight = 60;
-    // 稀有物品适中
-    if (item.type === 'rare') rWeight = 15;
-    // 传说物品极低
-    if (item.type === 'legendary') rWeight = 4;
-    
-    // 随着索引增加，权重微调降低，防止后期图鉴污染
-    rWeight = Math.max(1, rWeight - (index * 0.1));
-
-    return { ...item, minLevel: lvl, rarityWeight: rWeight };
+    return { ...item, minLevel: lvl };
 });
 
-const CONFIG = {
-    baseHookSpeed: 14,
-    swingSpeed: 0.025,
-};
+const CONFIG = { baseHookSpeed: 14, swingSpeed: 0.025 };
 
-// --- 背景绘制 ---
+function getSpawnWeights(level) {
+    let weights = { trash: 15, fish: 50, rare: 10, legendary: 1 };
+    if (level <= 15) {
+        weights.trash = 5 + (level * 0.5); 
+        weights.fish = 70 - (level * 0.5); 
+        weights.rare = 20; weights.legendary = 5;
+    } else if (level <= 50) {
+        weights.trash = 15 + ((level - 15) * 1.0); 
+        weights.fish = 60 - ((level - 15) * 0.5);  
+        weights.rare = 15 - ((level - 15) * 0.2);  
+        weights.legendary = 3;
+    } else {
+        let extra = level - 50;
+        weights.trash = 50 + (extra * 0.5); 
+        weights.fish = 35 - (extra * 0.3);
+        weights.rare = 5; weights.legendary = 1;
+    }
+    return weights;
+}
+
+function getAIDelay(level) { return Math.max(8, 120 - (level * 1.1)); }
+function getBotCount(level) { return Math.min(19, 1 + Math.floor(level / 5.5)); }
+function getTargetScore(level) {
+    if (level <= 15) return 300 + (level * 150); 
+    if (level <= 50) return 2500 + ((level-15) * 300); 
+    return 13000 + ((level-50) * 400); 
+}
+
 const Ocean = {
     offset: 0,
     draw() {
         this.offset += 0.015;
         let grad = ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0, "#84fab0"); 
-        grad.addColorStop(0.4, "#8fd3f4");
-        grad.addColorStop(1, "#002050");
-        
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, H);
-
+        grad.addColorStop(0, "#84fab0"); grad.addColorStop(0.4, "#8fd3f4"); grad.addColorStop(1, "#002050");
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
         this.drawWave(120, 0.008, 10, "rgba(255, 255, 255, 0.15)");
         this.drawWave(180, 0.012, 15, "rgba(255, 255, 255, 0.1)");
         this.drawWave(240, 0.006, 8, "rgba(255, 255, 255, 0.05)");
     },
     drawWave(yBase, freq, amp, color) {
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(0, H);
+        ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, H);
         for (let i = 0; i <= W; i += 10) {
             let y = yBase + Math.sin(i * freq + this.offset) * amp;
             ctx.lineTo(i, y + i * 0.05); 
         }
-        ctx.lineTo(W, H);
-        ctx.lineTo(0, H);
-        ctx.fill();
+        ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
     }
 };
 
 class Angler {
     constructor(id, totalCount, isPlayer) {
-        this.id = id;
-        this.isPlayer = isPlayer;
-        this.score = 0; 
-        
-        const rowSize = 5;
-        const totalRows = Math.ceil(totalCount / rowSize);
-        this.row = Math.floor(id / rowSize);
-        this.col = id % rowSize;
+        this.id = id; this.isPlayer = isPlayer; this.score = 0; 
+        const rowSize = 5; const totalRows = Math.ceil(totalCount / rowSize);
+        this.row = Math.floor(id / rowSize); this.col = id % rowSize;
         this.countInThisRow = (this.row === totalRows - 1) ? (totalCount - (this.row * rowSize)) : rowSize;
-        
-        this.baseTop = 220; 
-        this.rowHeight = 70;
-        this.y = this.baseTop + this.row * this.rowHeight; 
-        this.x = 0; 
-
+        this.baseTop = 220; this.rowHeight = 70;
+        this.y = this.baseTop + this.row * this.rowHeight; this.x = 0; 
         this.color = this.isPlayer ? '#FFD700' : '#888';
-        this.angle = Math.PI/2;
-        this.swingDir = Math.random() > 0.5 ? 1 : -1;
-        this.state = 0; 
-        this.lineLen = 20;
-        this.maxLen = H * 1.3;
-        this.caughtItem = null;
-        let aiBase = Math.max(10, 80 - Game.level * 0.8); 
-        this.aiTimer = Math.random() * aiBase + 20;
+        this.angle = Math.PI/2; this.swingDir = Math.random() > 0.5 ? 1 : -1;
+        this.state = 0; this.lineLen = 20; this.maxLen = H * 1.3; this.caughtItem = null;
+        this.aiReactionBase = getAIDelay(Game.level); this.resetAI();
     }
-
+    resetAI() { this.aiTimer = this.aiReactionBase + (Math.random() * 20 - 10); }
     update() {
-        const maxLayoutWidth = Math.min(W, 600); 
-        const offsetLeft = (W - maxLayoutWidth) / 2;
+        const maxLayoutWidth = Math.min(W, 600); const offsetLeft = (W - maxLayoutWidth) / 2;
         this.x = offsetLeft + (maxLayoutWidth / (this.countInThisRow + 1)) * (this.col + 1);
-
         if (this.state === 0) {
             const limit = 0.65;
             if (this.angle > Math.PI - limit) this.swingDir = -1;
             if (this.angle < limit) this.swingDir = 1;
             this.angle += CONFIG.swingSpeed * this.swingDir;
-            
             if (!this.isPlayer) {
                 this.aiTimer--;
-                if (this.aiTimer <= 0) {
-                    this.shoot();
-                    let aiBase = Math.max(10, 80 - Game.level * 0.8);
-                    this.aiTimer = Math.random() * aiBase + 20;
-                }
+                if (this.aiTimer <= 0) { this.shoot(); this.resetAI(); }
             }
-        }
-        else if (this.state === 1) {
+        } else if (this.state === 1) {
             this.lineLen += CONFIG.baseHookSpeed;
             const tx = this.x + Math.cos(this.angle) * this.lineLen;
             const ty = this.y + Math.sin(this.angle) * this.lineLen;
-            
-            if (this.lineLen >= this.maxLen || tx<0 || tx>W) {
-                this.state = 3; this.waitTimer = 10;
-            } else {
+            if (this.lineLen >= this.maxLen || tx<0 || tx>W) { this.state = 3; this.waitTimer = 10; }
+            else {
                 for (let item of Game.items) {
                     if (!item.caught && Math.hypot(tx-item.x, ty-item.y) < item.radius + 5) {
-                        item.caught = true;
-                        this.caughtItem = item;
-                        this.state = 2;
+                        item.caught = true; this.caughtItem = item; this.state = 2;
                         if(this.isPlayer) {
                             let isHighValue = item.score >= 1000;
                             Game.addEffect(tx, ty, isHighValue ? "Wow!" : "Hit!", isHighValue ? "#FFD700" : "#fff");
@@ -428,29 +490,19 @@ class Angler {
                     }
                 }
             }
-        }
-        else if (this.state === 3) {
-            this.waitTimer--;
-            if (this.waitTimer<=0) this.state = 2;
-        }
-        else if (this.state === 2) {
-            let speedMult = 1.0;
-            if (Game.leaderId === this.id) speedMult = 1.2;
-            
+        } else if (this.state === 3) {
+            this.waitTimer--; if (this.waitTimer<=0) this.state = 2;
+        } else if (this.state === 2) {
+            let speedMult = 1.0; if (Game.leaderId === this.id) speedMult = 1.2;
             let speed = (CONFIG.baseHookSpeed * 1.5 * speedMult);
-            if (this.caughtItem) {
-                speed = (CONFIG.baseHookSpeed / this.caughtItem.weight) * speedMult;
-            }
-            
+            if (this.caughtItem) speed = (CONFIG.baseHookSpeed / this.caughtItem.weight) * speedMult;
             this.lineLen -= speed;
             if(this.caughtItem) {
                 this.caughtItem.x = this.x + Math.cos(this.angle) * this.lineLen;
                 this.caughtItem.y = this.y + Math.sin(this.angle) * this.lineLen;
             }
-            
             if (this.lineLen <= 20) {
-                this.lineLen = 20;
-                this.state = 0;
+                this.lineLen = 20; this.state = 0;
                 if (this.caughtItem) {
                     this.score += this.caughtItem.score;
                     if (this.isPlayer) {
@@ -464,113 +516,126 @@ class Angler {
             }
         }
     }
-
     shoot() { if (this.state === 0) this.state = 1; }
-
     draw() {
         const tx = this.x + Math.cos(this.angle) * this.lineLen;
         const ty = this.y + Math.sin(this.angle) * this.lineLen;
-        
         ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(tx, ty);
         ctx.strokeStyle = this.isPlayer ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = this.isPlayer ? 2 : 1;
-        ctx.stroke();
-        
+        ctx.lineWidth = this.isPlayer ? 2 : 1; ctx.stroke();
         ctx.beginPath(); ctx.arc(tx, ty, 5, 0, Math.PI*2);
         ctx.fillStyle = this.isPlayer ? '#FF3B30' : '#ccc'; ctx.fill();
         
-        ctx.font = "24px Apple Color Emoji, Segoe UI Emoji"; 
-        ctx.textAlign="center"; ctx.textBaseline="middle";
-        ctx.fillText(this.isPlayer?"🤠":"🤖", this.x, this.y-22);
-        
-        if (Game.leaderId === this.id) {
-            ctx.font = "18px sans-serif";
-            ctx.fillText("👑", this.x, this.y - 48);
+        let avatarImg = this.isPlayer ? IMAGES.player : IMAGES.bot;
+        if (avatarImg.complete) {
+            ctx.drawImage(avatarImg, this.x - 25, this.y - 45, 50, 50);
+        } else {
+            ctx.font = "24px sans-serif";
+            ctx.fillText(this.isPlayer?"🤠":"🤖", this.x, this.y-22);
         }
-
+        if (Game.leaderId === this.id) { ctx.font = "18px sans-serif"; ctx.fillText("👑", this.x, this.y - 48); }
         if (this.isPlayer) {
             ctx.fillStyle="#34C759"; ctx.beginPath();
-            ctx.moveTo(this.x, this.y-55); ctx.lineTo(this.x-6, this.y-65); ctx.lineTo(this.x+6, this.y-65);
-            ctx.fill();
+            ctx.moveTo(this.x, this.y-55); ctx.lineTo(this.x-6, this.y-65); ctx.lineTo(this.x+6, this.y-65); ctx.fill();
         }
     }
 }
 
 class Item {
     constructor() {
-        // --- 核心生成逻辑 ---
         let availablePool = LOOT_DB.filter(i => Game.level >= i.minLevel);
-        
-        // 新物品概率Buff
-        let newlyUnlocked = availablePool.filter(i => i.minLevel === Game.level);
-        let totalWeight = availablePool.reduce((sum, item) => sum + item.rarityWeight, 0);
-        
-        if (newlyUnlocked.length > 0) totalWeight += 50; 
-
+        const weights = getSpawnWeights(Game.level);
+        let weightedPool = availablePool.map(item => {
+            let w = 10; 
+            if (item.type === 'trash') w = weights.trash;
+            if (item.type === 'fish') w = weights.fish;
+            if (item.type === 'rare') w = weights.rare;
+            if (item.type === 'legendary') w = weights.legendary;
+            if (item.minLevel === Game.level) w += 50;
+            return { item, weight: w };
+        });
+        let totalWeight = weightedPool.reduce((sum, wp) => sum + wp.weight, 0);
         let random = Math.random() * totalWeight;
-        let selected = availablePool[0];
-
-        if (newlyUnlocked.length > 0 && random > (totalWeight - 50)) {
-            selected = newlyUnlocked[0];
-        } else {
-            for (let item of availablePool) {
-                if (random < item.rarityWeight) { selected = item; break; }
-                random -= item.rarityWeight;
-            }
+        let selected = weightedPool[0].item;
+        for (let wp of weightedPool) {
+            if (random < wp.weight) { selected = wp.item; break; }
+            random -= wp.weight;
         }
-
         Object.assign(this, selected);
         this.speed *= (1 + Math.min(0.5, Game.level * 0.01)); 
-
         const rows = Math.ceil(Game.totalAnglers/5);
         const lastAnglerY = 220 + (rows - 1) * 70; 
         const safeTop = lastAnglerY + 60;
-
         this.y = safeTop + Math.random() * (H - safeTop - 40);
         this.dir = Math.random() > 0.5 ? 1 : -1;
         this.x = this.dir === 1 ? -60 : W + 60;
-        this.caught = false;
-        this.animOffset = Math.random() * 100;
+        this.caught = false; this.animOffset = Math.random() * 100;
     }
-    
     update() {
         if (!this.caught) this.x += this.speed * this.dir;
         return (this.dir===1 && this.x<W+70) || (this.dir===-1 && this.x>-70);
     }
-    
     draw() {
         ctx.save(); ctx.translate(this.x, this.y);
         if(this.dir===-1 && !this.caught) ctx.scale(-1, 1);
         if(this.caught) ctx.rotate(Math.sin(Game.frameCount*0.3)*0.5);
-        
         const pulse = 10 + Math.sin((Game.frameCount + this.animOffset) * 0.1) * 4;
-        
-        ctx.shadowColor = "rgba(255, 255, 255, 1)";
-        ctx.shadowBlur = pulse; 
-        
+        ctx.shadowColor = "rgba(255, 255, 255, 1)"; ctx.shadowBlur = pulse; 
         ctx.font = `${this.radius*2.2}px Apple Color Emoji, Segoe UI Emoji`; 
-        ctx.textAlign="center"; ctx.textBaseline="middle";
-        ctx.fillText(this.emoji, 0, 0);
-        
+        ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(this.emoji, 0, 0);
         if (this.type === 'legendary' && !this.caught) {
-            ctx.shadowColor = "rgba(255, 220, 0, 1)";
-            ctx.shadowBlur = pulse + 10;
-            ctx.globalCompositeOperation = 'source-over'; 
-            ctx.fillText(this.emoji, 0, 0); 
+            ctx.shadowColor = "rgba(255, 220, 0, 1)"; ctx.shadowBlur = pulse + 10;
+            ctx.globalCompositeOperation = 'source-over'; ctx.fillText(this.emoji, 0, 0); 
         }
         ctx.restore();
     }
 }
 
 const Game = {
-    level: 1, maxLevel: 1, 
+    level: 1, maxLevel: 1, lang: 'en',
     playerScore: 0, target: 0, timeLeft: 60, totalAnglers: 1, leaderId: -1,
     anglers: [], items: [], effects: [], isPlaying: false, timerId: null, loopId: null, frameCount: 0,
 
     init() {
-        const saved = localStorage.getItem('fishing_max_level');
-        if (saved) { this.maxLevel = parseInt(saved); }
-        document.getElementById('start-btn').innerText = `继续第 ${this.maxLevel} 关`;
+        const savedLevel = localStorage.getItem('fishing_max_level');
+        if (savedLevel) { this.maxLevel = parseInt(savedLevel); }
+        this.updateUIText();
+    },
+
+    setLanguage(langCode) {
+        this.lang = langCode;
+        this.updateUIText();
+        const guideList = document.getElementById('guide-list');
+        if (langCode === 'ar') guideList.classList.add('rtl-mode');
+        else guideList.classList.remove('rtl-mode');
+    },
+
+    t(key) { return TRANSLATIONS[this.lang][key] || TRANSLATIONS['en'][key]; },
+
+    updateUIText() {
+        const T = this.t.bind(this);
+        document.getElementById('ui-lb-title').innerText = T('lb_title');
+        document.getElementById('buff-msg').innerText = T('buff_msg');
+        document.getElementById('level-display').innerText = this.level > 1 ? this.level : this.maxLevel;
+        
+        document.getElementById('guide-title').innerText = T('guide_title');
+        document.getElementById('guide-subtitle').innerText = T('guide_subtitle');
+        document.getElementById('guide-close-btn').innerText = T('guide_close');
+
+        document.getElementById('start-title').innerText = T('start_title');
+        document.getElementById('start-text-1').innerText = T('start_t1');
+        document.getElementById('start-text-2').innerText = T('start_t2');
+        document.getElementById('start-btn').innerText = `${T('start_btn_prefix')} ${this.maxLevel}`;
+        document.getElementById('reset-btn').innerText = T('reset_btn');
+
+        document.getElementById('fail-title').innerText = T('fail_title');
+        document.getElementById('fail-text').innerText = T('fail_text');
+        document.getElementById('fail-score-label').innerText = T('fail_label');
+        document.getElementById('fail-btn').innerText = T('fail_btn');
+
+        document.getElementById('win-title').innerText = T('win_title');
+        document.getElementById('win-text').innerText = T('win_text');
+        document.getElementById('win-btn').innerText = T('win_btn');
     },
 
     showGuide() {
@@ -578,10 +643,10 @@ const Game = {
         let html = '';
         LOOT_DB.forEach(item => {
             let className = `t-${item.type}`;
-            let lockedClass = this.maxLevel >= item.minLevel ? 'unlocked' : 'locked';
-            let lockText = this.maxLevel >= item.minLevel ? '已解锁' : `Lv.${item.minLevel}`;
-            let emojiDisplay = this.maxLevel >= item.minLevel ? item.emoji : '🔒';
-            
+            let unlocked = this.maxLevel >= item.minLevel;
+            let lockedClass = unlocked ? 'unlocked' : 'locked';
+            let lockText = unlocked ? this.t('unlocked') : `${this.t('locked_prefix')}${item.minLevel}`;
+            let emojiDisplay = unlocked ? item.emoji : '🔒';
             html += `
                 <div class="guide-row">
                     <div class="guide-left">
@@ -597,11 +662,8 @@ const Game = {
     },
 
     closeGuide() {
-        if (this.isPlaying) {
-            document.getElementById('guide-screen').classList.remove('active');
-        } else {
-            this.showModal('start-screen');
-        }
+        if (this.isPlaying) document.getElementById('guide-screen').classList.remove('active');
+        else this.showModal('start-screen');
     },
 
     saveProgress(newLevel) {
@@ -612,39 +674,29 @@ const Game = {
     },
 
     resetProgress() {
-        if(confirm('确定要重置所有进度吗？')) {
+        if(confirm('Reset progress?')) {
             localStorage.removeItem('fishing_max_level');
-            this.maxLevel = 1;
-            document.getElementById('start-btn').innerText = `开始第 1 关`;
-            alert('进度已重置');
+            this.maxLevel = 1; this.updateUIText(); alert('Progress reset.');
         }
     },
 
     startSavedLevel() { this.startLevel(this.maxLevel); },
 
-    getBotCount(lvl) {
-        let count = 1 + Math.floor(lvl / 5.5); 
-        return Math.min(19, count);
-    },
-    getTargetScore(lvl) { return 500 + (lvl * 250); },
     showModal(id) {
         document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('active'));
         if(id) document.getElementById(id).classList.add('active');
     },
 
     startLevel(lvl) {
-        this.level = lvl;
-        this.playerScore = 0;
-        this.timeLeft = 60;
-        this.target = this.getTargetScore(lvl);
-        let botCount = this.getBotCount(lvl);
+        this.level = lvl; this.playerScore = 0; this.timeLeft = 60;
+        this.target = getTargetScore(lvl);
+        let botCount = getBotCount(lvl);
         this.totalAnglers = botCount + 1; 
-
         this.showModal(null);
+        this.updateUIText();
         document.getElementById('level-display').innerText = lvl;
         this.initEntities();
         this.isPlaying = true;
-        
         clearInterval(this.timerId);
         this.timerId = setInterval(() => {
             if(!this.isPlaying) return;
@@ -654,15 +706,12 @@ const Game = {
             timeEl.style.color = this.timeLeft <= 10 ? '#FF3B30' : '#fff';
             if (this.timeLeft <= 0) this.checkResult();
         }, 1000);
-        
         cancelAnimationFrame(this.loopId);
         this.loop();
     },
 
     initEntities() {
-        this.anglers = [];
-        this.items = [];
-        this.effects = [];
+        this.anglers = []; this.items = []; this.effects = [];
         let playerIdx = Math.floor(this.totalAnglers / 2);
         for (let i = 0; i < this.totalAnglers; i++) {
             this.anglers.push(new Angler(i, this.totalAnglers, i === playerIdx));
@@ -677,7 +726,7 @@ const Game = {
             let html = '';
             for(let i=0; i<Math.min(3, sorted.length); i++) {
                 let ag = sorted[i];
-                let name = ag.isPlayer ? "我" : `Bot ${ag.id}`;
+                let name = ag.isPlayer ? this.t('you') : `${this.t('bot')} ${ag.id}`;
                 let rowClass = ag.isPlayer ? "lb-row me" : "lb-row";
                 html += `<div class="${rowClass}"><span>${i+1}.${name}</span><span>${ag.score}</span></div>`;
             }
@@ -692,14 +741,11 @@ const Game = {
     nextLevel() { this.startLevel(this.level + 1); },
 
     checkResult() {
-        this.isPlaying = false;
-        clearInterval(this.timerId);
+        this.isPlaying = false; clearInterval(this.timerId);
         if (this.playerScore >= this.target) {
-            this.saveProgress(this.level + 1);
-            this.showModal('win-screen');
+            this.saveProgress(this.level + 1); this.showModal('win-screen');
         } else {
-            document.getElementById('fail-score').innerText = this.playerScore;
-            this.showModal('fail-screen');
+            document.getElementById('fail-score').innerText = this.playerScore; this.showModal('fail-screen');
         }
     },
 
@@ -709,11 +755,8 @@ const Game = {
 
     loop() {
         if (!this.isPlaying) return;
-        ctx.clearRect(0,0,W,H);
-        this.frameCount++;
-
+        ctx.clearRect(0,0,W,H); this.frameCount++;
         Ocean.draw();
-
         document.getElementById('score').innerText = this.playerScore;
         document.getElementById('target').innerText = this.target;
         this.updateLeaderboard();
@@ -721,34 +764,21 @@ const Game = {
         if (this.frameCount % Math.floor(spawnRate) === 0) {
             if (this.items.length < 30) this.items.push(new Item());
         }
-
-        this.items = this.items.filter(i => {
-            if (i.caught) return true;
-            return i.update();
-        });
-
+        this.items = this.items.filter(i => { if (i.caught) return true; return i.update(); });
         this.anglers.forEach(a => a.update());
         let sortedAnglers = [...this.anglers].sort((a,b) => a.y - b.y);
-
         sortedAnglers.forEach(a => { a.draw(); });
         this.items.forEach(i => { if(!i.caught) i.draw(); });
         sortedAnglers.forEach(a => { if(a.caughtItem) a.caughtItem.draw(); });
-
         this.effects = this.effects.filter(e => e.life>0);
         this.effects.forEach(e => {
             e.y -= 1.0; e.life--;
-            ctx.save();
-            ctx.translate(e.x, e.y);
+            ctx.save(); ctx.translate(e.x, e.y);
             let s = e.scale * (1 + Math.sin(e.life * 0.2) * 0.1);
-            ctx.scale(s, s);
-            ctx.fillStyle = e.color;
-            ctx.globalAlpha = Math.min(1, e.life/30);
-            ctx.font = "800 24px var(--font-stack)";
-            ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 4;
-            ctx.fillText(e.text, 0, 0);
-            ctx.restore();
+            ctx.scale(s, s); ctx.fillStyle = e.color; ctx.globalAlpha = Math.min(1, e.life/30);
+            ctx.font = "800 24px var(--font-stack)"; ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 4;
+            ctx.fillText(e.text, 0, 0); ctx.restore();
         });
-
         this.loopId = requestAnimationFrame(() => this.loop());
     }
 };
@@ -757,8 +787,7 @@ Game.init();
 
 function handleInput(e) {
     if (!Game.isPlaying) return;
-    if (e.target.closest('.glass-pill') || e.target.tagName === 'BUTTON') return;
-    
+    if (e.target.closest('.glass-pill') || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
     e.preventDefault();
     const player = Game.anglers.find(a => a.isPlayer);
     if (player) player.shoot();
